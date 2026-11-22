@@ -367,6 +367,7 @@ impl App {
             Kind::Control => ui::control::draw(&mut cv, &ctx, ui, &mut hits),
             Kind::Power => ui::power::draw(&mut cv, &ctx, ui, &mut hits),
             Kind::Picker => ui::picker::draw(&mut cv, &ctx, ui, &mut hits),
+            Kind::Settings => ui::settings::draw(&mut cv, &ctx, ui, &mut hits),
             Kind::Widget(w) => ui::widgets::draw(&mut cv, &ctx, ui, &mut hits, w),
             Kind::Viz => ui::widgets::draw_viz(&mut cv, &ctx, ui),
         };
@@ -474,7 +475,7 @@ impl App {
             }
             app.gfx.trim_layers();
             // no panel open: the glyph and icon caches go too (they refill in microseconds)
-            if !app.surfs.iter().any(|s| matches!(s.kind, Kind::Launcher | Kind::Control | Kind::Card | Kind::Power | Kind::Picker)) {
+            if !app.surfs.iter().any(|s| matches!(s.kind, Kind::Launcher | Kind::Control | Kind::Card | Kind::Power | Kind::Picker | Kind::Settings)) {
                 app.gfx.trim();
             }
             if app.cfg.performance.trim_memory {
@@ -495,6 +496,34 @@ impl App {
 
     fn surf_index(&self, wl: &wl_surface::WlSurface) -> Option<usize> {
         self.surfs.iter().position(|s| s.layer.wl_surface() == wl)
+    }
+
+    /// Testing without a mouse: a click (or a wheel step) at surface coordinates of a surface.
+    pub fn debug_click(&mut self, kind: Kind, x: f32, y: f32, wheel: f32) -> String {
+        let Some(i) = self.surfs.iter().position(|s| s.kind == kind) else { return "no such surface".into() };
+        let Some(h) = self.hit_at(i, x, y).cloned() else {
+            if wheel != 0.0 {
+                ui::scroll_surface(self, kind, wheel);
+                self.flush();
+                return "scrolled".into();
+            }
+            ui::press_empty(self, kind, 0x110, x, y);
+            self.flush();
+            return "nothing there".into();
+        };
+        let r = format!("{:?}", h.act);
+        if wheel != 0.0 && h.scroll != Act::None {
+            ui::scroll(self, &h.scroll, wheel);
+        } else if wheel != 0.0 {
+            ui::scroll_surface(self, kind, wheel);
+        } else if h.kind == HitKind::Slider {
+            ui::slide(self, &h.act, h.frac(x));
+            ui::slide_end(self, &h.act);
+        } else {
+            ui::act(self, h.act.clone());
+        }
+        self.flush();
+        r
     }
 
     fn hit_at(&self, i: usize, x: f32, y: f32) -> Option<&Hit> {
@@ -925,7 +954,7 @@ pub fn run() -> Result<(), String> {
                     .surfs
                     .iter()
                     .map(|s| s.kind)
-                    .filter(|k| matches!(k, Kind::Launcher | Kind::Control | Kind::Card | Kind::Power | Kind::Picker))
+                    .filter(|k| matches!(k, Kind::Launcher | Kind::Control | Kind::Card | Kind::Power | Kind::Picker | Kind::Settings))
                     .collect();
                 for k in panels {
                     app.destroy(k);

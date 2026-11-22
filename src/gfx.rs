@@ -58,8 +58,10 @@ fn raster_icon(d: &str, px: u16) -> Option<Box<[u8]>> {
     let bez = kurbo::BezPath::from_svg(d).ok()?;
     let path = kurbo_to_skia(&bez)?;
     let mut m = Mask::new(px as u32, px as u32)?;
-    let s = px as f32 / 960.0;
-    m.fill_path(&path, FillRule::Winding, true, Transform::from_row(s, 0.0, 0.0, s, 0.0, 960.0 * s));
+    // most symbols use viewBox "0 -960 960 960"; a few older ones are drawn on a 24-unit grid
+    let small = kurbo::Shape::bounding_box(&bez).y0 >= -0.5;
+    let (s, dy) = if small { (px as f32 / 24.0, 0.0) } else { (px as f32 / 960.0, px as f32) };
+    m.fill_path(&path, FillRule::Winding, true, Transform::from_row(s, 0.0, 0.0, s, 0.0, dy));
     Some(m.data().to_vec().into_boxed_slice())
 }
 

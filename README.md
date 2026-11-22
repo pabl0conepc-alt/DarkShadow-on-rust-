@@ -13,6 +13,8 @@ Sem EWW, sem GTK, sem Qt/QML. O `dshell` desenha tudo ele mesmo na CPU, direto e
 | ![](docs/screenshots/today.jpg) | ![](docs/screenshots/system.jpg) |
 | **Player crescendo da ilha** | **Notificação na ilha** |
 | ![](docs/screenshots/player.jpg) | ![](docs/screenshots/notification.jpg) |
+| **Configurações (`SUPER + U`)** | |
+| ![](docs/screenshots/settings.jpg) | |
 | **Papéis de parede (`SUPER + W`)** | **Energia (`CTRL + ALT + Delete`)** |
 | ![](docs/screenshots/picker.jpg) | ![](docs/screenshots/power.jpg) |
 
@@ -67,10 +69,11 @@ Binário: ~8 MiB (4 MiB são a fonte Google Sans Flex embutida). Primeiro quadro
 | **Papel de parede** | desenhado pelo shell, seletor com miniaturas, aleatório, as cores do shell inteiro seguem a imagem (cinza para imagens sem cor) |
 | **Temas** | `auto` (da imagem), `grey` e os 19 esquemas do original (navy, mono, slate, ocean, teal, rose, violet...) ou qualquer cor; estilos de widget `google`, `shadow` (vidro) e `outline`; sua forma (verysunny, cookie, flower, clover...) |
 | **Energia** | bloquear, suspender, sair, reiniciar, desligar (teclado ou mouse) |
+| **Configurações** | janela própria (`SUPER + U` ou a engrenagem): Aparência, Barra, Ilha, Widgets, Papel de parede, Notificações, Sistema e Sobre, com interruptores, escolhas, sliders e as cores/formas como fichas; tudo vale na hora e só as opções que você mexeu são gravadas no `config.toml` |
 
 ### Diferenças do original (e por quê)
 
-- **Configurações:** o original tem um app de configurações em QML. Aqui tudo fica em `~/.config/dshell/config.toml`, recarregado ao salvar (o botão de engrenagem abre o arquivo). Um app gráfico de configurações é o próximo passo.
+- **Configurações:** a janela de Configurações cobre as opções do shell; o que ela não mostra (módulos da barra, posições exatas, comandos) fica no `config.toml`, recarregado ao salvar. Ainda não há busca nas configurações.
 - **Ainda não feito:** dock, task view, game bar, área de transferência, captura/gravação de tela, tray (StatusNotifierItem), menus de redes Wi-Fi/dispositivos Bluetooth (há os interruptores), letras de música, sons de interface, tela de bloqueio própria (usa hyprlock/swaylock), tema do SDDM, intro de boas-vindas.
 - **Compositores:** Hyprland e driftwm (no driftwm os bookmarks fazem o papel de workspaces). niri não é suportado.
 - **Ícones:** os Material Symbols usados vêm embutidos como vetores (sem precisar da fonte instalada).
@@ -117,6 +120,7 @@ Esses arquivos ligam o blur atrás dos cartões e as teclas abaixo.
 |---|---|
 | `ALT + Space`, `SUPER + R` | launcher |
 | `SUPER + N`, `SUPER + A` | central de controle |
+| `SUPER + U` | configurações |
 | `SUPER + W` | papéis de parede (ou clique direito na área de trabalho) |
 | `SUPER + ALT + D` | Hoje (o cartão da ilha) |
 | `SUPER + ALT + W` | mover os widgets com o mouse (de novo para terminar) |
@@ -131,7 +135,7 @@ No launcher: digite para buscar, `↑/↓`/`Tab` para escolher, `Enter` para abr
 
 ```
 dshell                          inicia o shell
-dshell toggle|open|close <p>    launcher | control | power | picker | today | system | player   (close all)
+dshell toggle|open|close <p>    launcher | control | settings | power | picker | today | system | player   (close all)
 dshell volume up|down|mute|set N        dshell mic mute
 dshell brightness up|down|set N         dshell media play-pause|next|prev
 dshell wallpaper set <arquivo>|next|random

@@ -12,7 +12,10 @@ battery_4_bar battery_5_bar battery_6_bar bolt cloud sunny partly_cloudy_day par
 foggy clear_night calendar_today schedule timer refresh add remove delete more_horiz keyboard_arrow_up keyboard_arrow_down
 chevron_right chevron_left expand_more memory speed thermostat developer_board hard_drive screenshot_region videocam stop
 do_not_disturb_on airplanemode_active sports_esports shuffle repeat person terminal folder public code edit coffee desktop_windows
-keyboard tune graphic_eq ac_unit water_drop air rocket_launch shield lan"
+keyboard tune graphic_eq ac_unit water_drop air rocket_launch shield lan
+toolbar widgets info dashboard magic_button photo_library notifications_unread open_in_new folder_open wifi_lock lock_open
+headphones smartphone keyboard_alt mouse speaker computer devices radio_button_checked fiber_manual_record crop_free
+screenshot_monitor stop_circle check_circle"
 tmp=$(mktemp -d)
 for n in $ICONS; do
   for v in "" "_fill1"; do

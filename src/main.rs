@@ -12,6 +12,7 @@ mod ipc;
 mod paths;
 mod proc;
 mod raster;
+mod settings;
 mod shell;
 mod state;
 mod svc;
@@ -22,7 +23,7 @@ mod ui;
 const HELP: &str = "dshell — DarkShadow's Shell (Rust)
 
   dshell                       start the shell (same as `dshell daemon`)
-  dshell toggle <panel>        launcher | control | power | picker | today | system | player
+  dshell toggle <panel>        launcher | control | settings | power | picker | today | system | player
   dshell open|close <panel>    the same, one way; `close all` closes every panel
   dshell volume up|down|mute|set <0-100>     (shows in the island)
   dshell mic mute

@@ -6,6 +6,7 @@ pub mod card;
 pub mod control;
 pub mod launcher;
 pub mod picker;
+pub mod settings;
 pub mod power;
 pub mod wall;
 pub mod widgets;
@@ -86,6 +87,7 @@ pub enum Kind {
     Control,
     Power,
     Picker,
+    Settings,
     Widget(WidgetId),
     Viz,
 }
@@ -154,6 +156,14 @@ pub enum Act {
     WallShuffle,
     OpenPicker,
     Settings,
+    OpenConfigFile,
+    Reload,
+    NotifTest,
+    EditMode,
+    SettingsPage(u8),
+    CfgToggle(&'static str),
+    CfgSet(&'static str, String),
+    CfgSlide(&'static str),
     Run(String),
 }
 
@@ -313,6 +323,15 @@ pub struct PickerUi {
     pub rev: Reveal,
 }
 
+pub struct SettingsUi {
+    pub page: u8,
+    pub scroll: f32,
+    pub rev: Reveal,
+    /// keys changed but not yet written to the file
+    pub pending: Vec<(String, toml::Value)>,
+    pub write_armed: bool,
+}
+
 pub struct FocusUi {
     pub running: bool,
     pub on_break: bool,
@@ -344,6 +363,7 @@ pub struct Ui {
     pub power: Reveal,
     pub power_sel: usize,
     pub picker: PickerUi,
+    pub settings: SettingsUi,
     pub focus: FocusUi,
     pub bar_rev: Reveal,
     pub edit: bool,
@@ -380,6 +400,7 @@ impl Ui {
             control: ControlUi { tab: 0, rev: Reveal::new(380, 200), scroll: 0.0 },
             power: Reveal::new(300, 160),
             power_sel: 0,
+            settings: SettingsUi { page: 0, scroll: 0.0, rev: Reveal::new(340, 180), pending: Vec::new(), write_armed: false },
             picker: PickerUi {
                 sel: 0,
                 list: Vec::new(),

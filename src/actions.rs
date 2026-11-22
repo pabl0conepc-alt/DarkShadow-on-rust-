@@ -241,8 +241,46 @@ pub fn toggle_picker(app: &mut App) {
     });
 }
 
+pub fn toggle_settings(app: &mut App) {
+    if app.has(Kind::Settings) {
+        app.ui.settings.rev.set(false, Instant::now());
+        app.mark_kind(Kind::Settings);
+        return;
+    }
+    close_others(app, Kind::Settings);
+    app.ui.settings.rev.set(true, Instant::now());
+    app.ui.settings.scroll = 0.0;
+    let (sw, sh) = app
+        .svc
+        .main_output
+        .as_ref()
+        .and_then(|o| app.outputs.info(o))
+        .and_then(|i| i.logical_size)
+        .map(|(w, h)| (w as u32, h as u32))
+        .unwrap_or((1920, 1080));
+    let w = 1080.min(sw.saturating_sub(60)).max(640);
+    let h = 740.min(sh.saturating_sub(90)).max(460);
+    app.open(Spec {
+        kind: Kind::Settings,
+        layer: Layer::Top,
+        ns: "dshell-settings",
+        anchor: Anchor::empty(),
+        size: (w + 2 * SHADOW as u32, h + 2 * SHADOW as u32),
+        exclusive: -1,
+        margin: (0, 0, 0, 0),
+        kb: KeyboardInteractivity::OnDemand,
+        output: app.svc.main_output.clone(),
+        topics: topic::THEME | topic::USER | topic::WM | topic::TOGGLES,
+        fps: 0,
+    });
+}
+
 fn close_others(app: &mut App, keep: Kind) {
     let now = Instant::now();
+    if keep != Kind::Settings && app.has(Kind::Settings) {
+        app.ui.settings.rev.set(false, now);
+        app.mark_kind(Kind::Settings);
+    }
     if keep != Kind::Launcher && app.has(Kind::Launcher) {
         app.ui.launcher.rev.set(false, now);
         app.mark_kind(Kind::Launcher);
@@ -684,7 +722,23 @@ pub fn act(app: &mut App, a: Act) {
         }
         Act::WallShuffle => wallpaper_random(app),
         Act::OpenPicker => toggle_picker(app),
-        Act::Settings => open_settings(app),
+        Act::Settings => toggle_settings(app),
+        Act::OpenConfigFile => open_settings(app),
+        Act::Reload => crate::shell::reload(app),
+        Act::NotifTest => system_notice(app, "Hello from DarkShadow", "Notifications are working. This one goes away by itself."),
+        Act::EditMode => {
+            app.ui.edit = !app.ui.edit;
+            close_all(app);
+            app.mark(topic::ALL);
+        }
+        Act::SettingsPage(i) => {
+            app.ui.settings.page = i;
+            app.ui.settings.scroll = 0.0;
+            app.mark_kind(Kind::Settings);
+        }
+        Act::CfgToggle(k) => crate::settings::toggle(app, k),
+        Act::CfgSet(k, v) => crate::settings::set(app, k, toml::Value::String(v)),
+        Act::CfgSlide(_) => {}
         Act::Run(cmd) => {
             crate::proc::sh(&cmd);
             close_all(app);
@@ -750,6 +804,7 @@ pub fn slide(app: &mut App, a: &Act, f: f32) {
         Act::Volume => audio::set(app, false, f),
         Act::Mic => audio::set(app, true, f),
         Act::Bright => brightness_set(app, f),
+        Act::CfgSlide(k) => crate::settings::slide(app, k, f),
         Act::Seek => {
             app.ui.island.pulse = None;
             app.svc.seek_preview = Some(f);
@@ -779,6 +834,10 @@ pub fn scroll(app: &mut App, a: &Act, d: f32) {
 
 pub fn scroll_surface(app: &mut App, kind: Kind, d: f32) {
     match kind {
+        Kind::Settings => {
+            app.ui.settings.scroll = (app.ui.settings.scroll + d * 56.0).max(0.0);
+            app.mark_kind(Kind::Settings);
+        }
         Kind::Launcher => {
             let l = &mut app.ui.launcher;
             let rows = app.cfg.launcher.rows.clamp(3, 12) as usize;
@@ -900,7 +959,7 @@ pub fn press_empty(app: &mut App, kind: Kind, button: u32, x: f32, y: f32) {
             app.ui.drag = Some((w, (x, y), (c.x, c.y)));
         }
         Kind::Widget(_) => close_all(app),
-        Kind::Launcher | Kind::Power | Kind::Picker => {
+        Kind::Launcher | Kind::Power | Kind::Picker | Kind::Settings => {
             // a click outside the card (in the shadow margin) closes it
             if let Some(s) = app.surf(kind) {
                 let m = SHADOW as f32;
@@ -999,11 +1058,33 @@ pub fn key(app: &mut App, ev: &KeyEvent) {
             Kind::Power => toggle_power(app),
             Kind::Picker => toggle_picker(app),
             Kind::Card => close_card(app),
+            Kind::Settings => toggle_settings(app),
             _ => {}
         }
         return;
     }
     match k {
+        Kind::Settings => {
+            let n = crate::settings::PAGES.len() as u8;
+            let s = &mut app.ui.settings;
+            match sym {
+                Keysym::Tab | Keysym::Right => {
+                    s.page = (s.page + 1) % n;
+                    s.scroll = 0.0;
+                }
+                Keysym::ISO_Left_Tab | Keysym::Left => {
+                    s.page = (s.page + n - 1) % n;
+                    s.scroll = 0.0;
+                }
+                Keysym::Down => s.scroll += 56.0,
+                Keysym::Up => s.scroll = (s.scroll - 56.0).max(0.0),
+                Keysym::Page_Down => s.scroll += 400.0,
+                Keysym::Page_Up => s.scroll = (s.scroll - 400.0).max(0.0),
+                Keysym::Home => s.scroll = 0.0,
+                _ => {}
+            }
+            app.mark_kind(Kind::Settings);
+        }
         Kind::Launcher => launcher_key(app, ev),
         Kind::Power => {
             let n = 5;
@@ -1113,6 +1194,7 @@ fn panel_kind(name: &str) -> Option<&'static str> {
         "control" | "cc" | "controlcenter" | "notifications" => "control",
         "power" | "session" => "power",
         "picker" | "wallpaper" | "wallpapers" => "picker",
+        "settings" | "config" => "settings",
         "today" | "dashboard" | "calendar" => "today",
         "system" => "system",
         "player" | "media" => "player",
@@ -1126,6 +1208,7 @@ fn is_open(app: &App, p: &str) -> bool {
         "control" => app.has(Kind::Control),
         "power" => app.has(Kind::Power),
         "picker" => app.has(Kind::Picker),
+        "settings" => app.has(Kind::Settings),
         "today" => app.has(Kind::Card) && app.ui.card.mode == CardMode::Today,
         "system" => app.has(Kind::Card) && app.ui.card.mode == CardMode::System,
         "player" => app.has(Kind::Card) && app.ui.card.mode == CardMode::Player,
@@ -1139,6 +1222,7 @@ fn toggle_panel(app: &mut App, p: &str) {
         "control" => toggle_control(app),
         "power" => toggle_power(app),
         "picker" => toggle_picker(app),
+        "settings" => toggle_settings(app),
         "today" => open_card(app, CardMode::Today, true),
         "system" => open_card(app, CardMode::System, true),
         "player" => open_card(app, CardMode::Player, true),
@@ -1326,6 +1410,20 @@ pub fn command(app: &mut App, line: &str) -> String {
             Ok(())
         }
         ["status"] => return status(app),
+        ["debug-click", p, x, y] | ["debug-click", p, x, y, _] => {
+            let kind = match *p {
+                "bar" => Kind::Bar,
+                "card" => Kind::Card,
+                "launcher" => Kind::Launcher,
+                "control" => Kind::Control,
+                "power" => Kind::Power,
+                "picker" => Kind::Picker,
+                "settings" => Kind::Settings,
+                _ => return "error: panel".into(),
+            };
+            let wheel = a.get(4).and_then(|w| w.parse::<f32>().ok()).unwrap_or(0.0);
+            return app.debug_click(kind, x.parse().unwrap_or(0.0), y.parse().unwrap_or(0.0), wheel);
+        }
         _ => Err(format!("unknown command `{line}` (see dshell --help)")),
     };
     match r {
