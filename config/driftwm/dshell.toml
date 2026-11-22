@@ -1,0 +1,74 @@
+# DarkShadow's Shell (Rust) on driftwm: merge these parts into ~/.config/driftwm/config.toml.
+# driftwm has no workspaces: its bookmarks are shown as the bar's workspaces (Super+1..5 below).
+
+autostart = ["dshell"]
+
+# blur behind the shell's glass (layer surfaces match rules by their namespace)
+[[window_rules]]
+app_id = "dshell-bar"
+blur = true
+
+[[window_rules]]
+app_id = "dshell-island"
+blur = true
+
+[[window_rules]]
+app_id = "dshell-launcher"
+blur = true
+
+[[window_rules]]
+app_id = "dshell-control"
+blur = true
+
+[[window_rules]]
+app_id = "dshell-power"
+blur = true
+
+[[window_rules]]
+app_id = "dshell-picker"
+blur = true
+
+[[window_rules]]
+app_id = "dshell-widget"
+blur = true
+
+[navigation.bookmarks]
+"1" = [0, 0]
+"2" = [3000, 0]
+"3" = [6000, 0]
+"4" = [9000, 0]
+"5" = [12000, 0]
+
+[keybindings]
+"alt+space" = "spawn dshell toggle launcher"
+"mod+r" = "spawn dshell toggle launcher"
+"mod+n" = "spawn dshell toggle control"
+"mod+a" = "spawn dshell toggle control"
+"mod+w" = "spawn dshell toggle picker"
+"mod+alt+w" = "spawn dshell edit"
+"mod+alt+d" = "spawn dshell toggle today"
+"mod+g" = "spawn dshell gaming"
+"ctrl+alt+delete" = "spawn dshell toggle power"
+"mod+l" = "spawn dshell lock"
+"mod+1" = "go-to-bookmark 1"
+"mod+2" = "go-to-bookmark 2"
+"mod+3" = "go-to-bookmark 3"
+"mod+4" = "go-to-bookmark 4"
+"mod+5" = "go-to-bookmark 5"
+"mod+alt+1" = "move-to-bookmark 1"
+"mod+alt+2" = "move-to-bookmark 2"
+"mod+alt+3" = "move-to-bookmark 3"
+"mod+alt+4" = "move-to-bookmark 4"
+"mod+alt+5" = "move-to-bookmark 5"
+"ctrl+mod+right" = "spawn dshell ws next"
+"ctrl+mod+left" = "spawn dshell ws prev"
+"XF86AudioRaiseVolume" = "spawn dshell volume up"
+"XF86AudioLowerVolume" = "spawn dshell volume down"
+"XF86AudioMute" = "spawn dshell volume mute"
+"XF86AudioMicMute" = "spawn dshell mic mute"
+"XF86MonBrightnessUp" = "spawn dshell brightness up"
+"XF86MonBrightnessDown" = "spawn dshell brightness down"
+"XF86AudioPlay" = "spawn dshell media play-pause"
+"XF86AudioPause" = "spawn dshell media play-pause"
+"XF86AudioNext" = "spawn dshell media next"
+"XF86AudioPrev" = "spawn dshell media prev"
