@@ -164,6 +164,13 @@ pub enum Act {
     CfgToggle(&'static str),
     CfgSet(&'static str, String),
     CfgSlide(&'static str),
+    CcView(u8),
+    WifiPick(String),
+    WifiScan,
+    BtPick(String),
+    BtScan,
+    PwSubmit,
+    PwCancel,
     Run(String),
 }
 
@@ -313,6 +320,11 @@ pub struct ControlUi {
     pub tab: u8,
     pub rev: Reveal,
     pub scroll: f32,
+    /// 0 the switches, 1 the Wi-Fi list, 2 the Bluetooth list
+    pub view: u8,
+    /// typing the password for this network
+    pub pw_for: Option<String>,
+    pub pw: String,
 }
 
 pub struct PickerUi {
@@ -397,7 +409,7 @@ impl Ui {
                 notif: None,
             },
             launcher: LauncherUi { query: String::new(), sel: 0, top: 0, results: Vec::new(), rev: Reveal::new(320, 160) },
-            control: ControlUi { tab: 0, rev: Reveal::new(380, 200), scroll: 0.0 },
+            control: ControlUi { tab: 0, rev: Reveal::new(380, 200), scroll: 0.0, view: 0, pw_for: None, pw: String::new() },
             power: Reveal::new(300, 160),
             power_sel: 0,
             settings: SettingsUi { page: 0, scroll: 0.0, rev: Reveal::new(340, 180), pending: Vec::new(), write_armed: false },

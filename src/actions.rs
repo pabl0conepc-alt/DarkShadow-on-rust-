@@ -157,6 +157,9 @@ pub fn toggle_control(app: &mut App) {
     }
     close_others(app, Kind::Control);
     app.ui.control.rev.set(true, Instant::now());
+    app.ui.control.view = 0;
+    app.ui.control.pw_for = None;
+    app.ui.control.pw.clear();
     let w = app.cfg.control.width.clamp(360, 600) + 2 * SHADOW as u32;
     let top = bar_top(app);
     app.open(Spec {
@@ -739,6 +742,59 @@ pub fn act(app: &mut App, a: Act) {
         Act::CfgToggle(k) => crate::settings::toggle(app, k),
         Act::CfgSet(k, v) => crate::settings::set(app, k, toml::Value::String(v)),
         Act::CfgSlide(_) => {}
+        Act::CcView(v) => {
+            let was = app.ui.control.view;
+            app.ui.control.view = v;
+            app.ui.control.pw_for = None;
+            app.ui.control.pw.clear();
+            if v == 1 {
+                bus::wifi_scan(app);
+            }
+            if v == 2 && app.st.bt.powered {
+                bt_scan_for_a_while(app);
+            }
+            if was == 2 && v != 2 && app.st.bt.scanning {
+                bus::bt_scan(app, false);
+            }
+            app.mark_kind(Kind::Control);
+        }
+        Act::WifiScan => bus::wifi_scan(app),
+        Act::WifiPick(ssid) => {
+            let ap = app.st.net.aps.iter().find(|a| a.ssid == ssid).cloned();
+            if let Some(ap) = ap {
+                if ap.active {
+                    bus::wifi_disconnect(app);
+                } else if ap.saved || !ap.secured {
+                    app.ui.control.pw_for = None;
+                    app.ui.control.pw.clear();
+                    bus::wifi_connect(app, &ssid, None);
+                } else {
+                    app.ui.control.pw_for = Some(ssid);
+                    app.ui.control.pw.clear();
+                }
+            }
+            app.mark_kind(Kind::Control);
+        }
+        Act::PwSubmit => {
+            if let Some(ssid) = app.ui.control.pw_for.take() {
+                let pw = std::mem::take(&mut app.ui.control.pw);
+                bus::wifi_connect(app, &ssid, Some(&pw));
+            }
+            app.mark_kind(Kind::Control);
+        }
+        Act::PwCancel => {
+            app.ui.control.pw_for = None;
+            app.ui.control.pw.clear();
+            app.mark_kind(Kind::Control);
+        }
+        Act::BtScan => {
+            if app.st.bt.scanning {
+                bus::bt_scan(app, false);
+            } else {
+                bt_scan_for_a_while(app);
+            }
+        }
+        Act::BtPick(path) => bus::bt_device(app, &path),
         Act::Run(cmd) => {
             crate::proc::sh(&cmd);
             close_all(app);
@@ -746,6 +802,17 @@ pub fn act(app: &mut App, a: Act) {
         // sliders act while dragging
         Act::Seek | Act::Volume | Act::Mic | Act::Bright => {}
     }
+}
+
+/// Look for Bluetooth devices for 20 seconds.
+fn bt_scan_for_a_while(app: &mut App) {
+    bus::bt_scan(app, true);
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_secs(20)), |_, _, app: &mut App| {
+        if app.st.bt.scanning {
+            bus::bt_scan(app, false);
+        }
+        TimeoutAction::Drop
+    });
 }
 
 fn open_settings(app: &mut App) {
@@ -1051,6 +1118,25 @@ pub fn focus_lost(app: &mut App, kind: Kind) {
 pub fn key(app: &mut App, ev: &KeyEvent) {
     let Some(k) = app.kb_focus else { return };
     let sym = ev.keysym;
+    if k == Kind::Control && app.ui.control.pw_for.is_some() {
+        match sym {
+            Keysym::Escape => act(app, Act::PwCancel),
+            Keysym::Return | Keysym::KP_Enter => act(app, Act::PwSubmit),
+            Keysym::BackSpace => {
+                app.ui.control.pw.pop();
+                app.mark_kind(Kind::Control);
+            }
+            _ => {
+                if let Some(t) = &ev.utf8
+                    && !t.chars().any(|c| c.is_control())
+                {
+                    app.ui.control.pw.push_str(t);
+                    app.mark_kind(Kind::Control);
+                }
+            }
+        }
+        return;
+    }
     if sym == Keysym::Escape {
         match k {
             Kind::Launcher => close_launcher(app),

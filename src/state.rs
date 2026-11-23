@@ -116,6 +116,20 @@ pub struct Net {
     pub kind: NetKind,
     pub ssid: String,
     pub strength: u8,
+    /// networks in reach (filled while the Wi-Fi list is open)
+    pub aps: Vec<Ap>,
+    pub connecting: String,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Ap {
+    pub ssid: String,
+    pub strength: u8,
+    pub secured: bool,
+    /// a saved connection exists (no password needed)
+    pub saved: bool,
+    pub active: bool,
+    pub path: String,
 }
 
 impl Net {
@@ -144,6 +158,21 @@ pub struct Bt {
     pub present: bool,
     pub powered: bool,
     pub connected: Vec<String>,
+    pub devices: Vec<BtDev>,
+    pub scanning: bool,
+    pub busy: String,
+    /// whether the busy device was connected when we asked (so we know when it has changed)
+    pub busy_from: bool,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct BtDev {
+    pub path: String,
+    pub name: String,
+    pub icon: String,
+    pub paired: bool,
+    pub connected: bool,
+    pub battery: Option<u8>,
 }
 
 #[derive(Clone, Debug, Default)]

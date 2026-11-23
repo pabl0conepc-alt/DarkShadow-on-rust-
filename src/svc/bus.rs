@@ -599,6 +599,22 @@ fn emit(app: &mut App, sig: &str, id: u32, reason: Option<u32>, key: Option<&str
 // ------------------------------------------------------------------ system bus
 
 fn on_system(app: &mut App, m: &Message) {
+    if m.msg_type() == MessageType::Error {
+        let name = m.get1::<String>().unwrap_or_default();
+        if !app.st.bt.busy.is_empty() {
+            app.st.bt.busy.clear();
+            crate::actions::system_notice(app, "Bluetooth", if name.is_empty() { "The device did not connect." } else { &name });
+            arm_bt(app);
+        }
+        if !app.st.net.connecting.is_empty() {
+            let ssid = std::mem::take(&mut app.st.net.connecting);
+            crate::actions::system_notice(app, "Wi-Fi", &format!("Could not connect to {ssid}. {name}"));
+        }
+        return;
+    }
+    if m.msg_type() == MessageType::MethodReturn {
+        return;
+    }
     if m.msg_type() != MessageType::Signal {
         return;
     }
@@ -668,7 +684,135 @@ pub fn refresh_net(app: &mut App) {
             app.svc.bus.nm_ap = ap;
         }
     }
+    if app.st.net.ssid == app.st.net.connecting {
+        app.st.net.connecting.clear();
+    }
+    if app.ui.control.view == 1 && app.has(crate::ui::Kind::Control) {
+        wifi_list(app);
+    }
     app.mark(topic::NET);
+}
+
+fn wifi_device(c: &LocalConnection) -> Option<String> {
+    let nm = c.with_proxy("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", T);
+    let (devs,): (Vec<Path<'static>>,) = nm.method_call("org.freedesktop.NetworkManager", "GetDevices", ()).ok()?;
+    devs.into_iter()
+        .find(|d| {
+            let p = c.with_proxy("org.freedesktop.NetworkManager", d.clone(), T);
+            p.get::<u32>("org.freedesktop.NetworkManager.Device", "DeviceType").map(|t| t == 2).unwrap_or(false)
+        })
+        .map(|d| d.to_string())
+}
+
+/// Saved Wi-Fi connections: ssid -> connection path.
+fn saved_wifi(c: &LocalConnection) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    let s = c.with_proxy("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager/Settings", T);
+    let r: Result<(Vec<Path<'static>>,), _> = s.method_call("org.freedesktop.NetworkManager.Settings", "ListConnections", ());
+    if let Ok((list,)) = r {
+        for p in list {
+            let cp = c.with_proxy("org.freedesktop.NetworkManager", p.clone(), T);
+            let r: Result<(HashMap<String, PropMap>,), _> = cp.method_call("org.freedesktop.NetworkManager.Settings.Connection", "GetSettings", ());
+            if let Ok((set,)) = r
+                && let Some(w) = set.get("802-11-wireless")
+                && let Some(ssid) = w.get("ssid").and_then(|v| v.0.as_iter().map(|it| it.filter_map(|b| b.as_u64().map(|x| x as u8)).collect::<Vec<u8>>()))
+            {
+                out.insert(String::from_utf8_lossy(&ssid).into_owned(), p.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// The networks in reach, strongest first (one entry per name).
+pub fn wifi_list(app: &mut App) {
+    let Some(c) = app.svc.bus.system.clone() else { return };
+    let Some(dev) = wifi_device(&c) else { return };
+    let d = c.with_proxy("org.freedesktop.NetworkManager", dev.as_str(), T);
+    let r: Result<(Vec<Path<'static>>,), _> = d.method_call("org.freedesktop.NetworkManager.Device.Wireless", "GetAllAccessPoints", ());
+    let saved = saved_wifi(&c);
+    let active_ap = d.get::<Path>("org.freedesktop.NetworkManager.Device.Wireless", "ActiveAccessPoint").map(|p| p.to_string()).unwrap_or_default();
+    let mut aps: Vec<crate::state::Ap> = Vec::new();
+    if let Ok((list,)) = r {
+        for p in list {
+            let ap = c.with_proxy("org.freedesktop.NetworkManager", p.clone(), T);
+            let Ok(props) = ap.get_all("org.freedesktop.NetworkManager.AccessPoint") else { continue };
+            let ssid: Vec<u8> = props
+                .get("Ssid")
+                .and_then(|v| v.0.as_iter().map(|it| it.filter_map(|b| b.as_u64().map(|x| x as u8)).collect()))
+                .unwrap_or_default();
+            let ssid = String::from_utf8_lossy(&ssid).into_owned();
+            if ssid.is_empty() {
+                continue;
+            }
+            let num = |k: &str| props.get(k).and_then(|v| v.0.as_u64()).unwrap_or(0);
+            let strength = num("Strength") as u8;
+            let secured = num("WpaFlags") != 0 || num("RsnFlags") != 0 || num("Flags") & 1 != 0;
+            let active = p.to_string() == active_ap;
+            if let Some(e) = aps.iter_mut().find(|a| a.ssid == ssid) {
+                if strength > e.strength {
+                    e.strength = strength;
+                    e.path = p.to_string();
+                }
+                e.active |= active;
+                continue;
+            }
+            aps.push(crate::state::Ap { saved: saved.contains_key(&ssid), ssid, strength, secured, active, path: p.to_string() });
+        }
+    }
+    aps.sort_by(|a, b| b.active.cmp(&a.active).then(b.saved.cmp(&a.saved)).then(b.strength.cmp(&a.strength)));
+    app.st.net.aps = aps;
+    app.mark(topic::NET);
+}
+
+pub fn wifi_scan(app: &mut App) {
+    let Some(c) = app.svc.bus.system.clone() else { return };
+    let Some(dev) = wifi_device(&c) else { return };
+    if let Ok(m) = Message::new_method_call("org.freedesktop.NetworkManager", dev.as_str(), "org.freedesktop.NetworkManager.Device.Wireless", "RequestScan") {
+        let m = m.append1(PropMap::new());
+        let _ = c.channel().send(m);
+        c.channel().flush();
+    }
+    wifi_list(app);
+}
+
+/// Connect to a network: its saved connection, or a new one (with the password for secured ones).
+pub fn wifi_connect(app: &mut App, ssid: &str, password: Option<&str>) {
+    let Some(c) = app.svc.bus.system.clone() else { return };
+    let Some(dev) = wifi_device(&c) else { return };
+    let Some(ap) = app.st.net.aps.iter().find(|a| a.ssid == ssid).cloned() else { return };
+    let saved = saved_wifi(&c);
+    let dev_path = Path::new(dev.clone()).unwrap();
+    let ap_path = Path::new(ap.path.clone()).unwrap_or_else(|_| Path::new("/").unwrap());
+    let msg = if let (Some(conn), None) = (saved.get(ssid), password) {
+        Message::new_method_call("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "ActivateConnection")
+            .ok()
+            .map(|m| m.append3(Path::new(conn.clone()).unwrap(), dev_path, ap_path))
+    } else {
+        let mut set: HashMap<&str, PropMap> = HashMap::new();
+        if let Some(pw) = password {
+            let mut sec = PropMap::new();
+            sec.insert("key-mgmt".into(), Variant(Box::new("wpa-psk".to_string())));
+            sec.insert("psk".into(), Variant(Box::new(pw.to_string())));
+            set.insert("802-11-wireless-security", sec);
+        }
+        Message::new_method_call("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "AddAndActivateConnection")
+            .ok()
+            .map(|m| m.append3(set, dev_path, ap_path))
+    };
+    if let Some(m) = msg {
+        let _ = c.channel().send(m);
+        c.channel().flush();
+        app.st.net.connecting = ssid.to_string();
+        app.mark(topic::NET);
+    }
+}
+
+pub fn wifi_disconnect(app: &mut App) {
+    let Some(c) = app.svc.bus.system.clone() else { return };
+    if let Some(dev) = wifi_device(&c) {
+        call_nowait(&c, "org.freedesktop.NetworkManager", &dev, "org.freedesktop.NetworkManager.Device", "Disconnect");
+    }
 }
 
 pub fn set_wifi(app: &mut App, on: bool) {
@@ -688,21 +832,93 @@ pub fn refresh_bt(app: &mut App) {
     bt.present = false;
     bt.powered = false;
     bt.connected.clear();
+    bt.devices.clear();
+    bt.scanning = false;
     if let Ok((objs,)) = r {
-        for (_, ifs) in objs {
+        for (path, ifs) in objs {
             if let Some(a) = ifs.get("org.bluez.Adapter1") {
                 bt.present = true;
                 if a.get("Powered").and_then(|v| v.0.as_u64()).unwrap_or(0) != 0 {
                     bt.powered = true;
                 }
             }
-            if let Some(d) = ifs.get("org.bluez.Device1")
-                && d.get("Connected").and_then(|v| v.0.as_u64()).unwrap_or(0) != 0
+            if let Some(d) = ifs.get("org.bluez.Device1") {
+                let flag = |k: &str| d.get(k).and_then(|v| v.0.as_u64()).unwrap_or(0) != 0;
+                let name = d.get("Alias").and_then(|v| v.0.as_str()).unwrap_or("Device").to_string();
+                if flag("Connected") {
+                    bt.connected.push(name.clone());
+                }
+                // nameless devices found by a scan are only addresses: leave them out
+                let named = d.get("Name").is_some() || flag("Paired");
+                if named {
+                    bt.devices.push(crate::state::BtDev {
+                        path: path.to_string(),
+                        name,
+                        icon: d.get("Icon").and_then(|v| v.0.as_str()).unwrap_or("").to_string(),
+                        paired: flag("Paired"),
+                        connected: flag("Connected"),
+                        battery: ifs.get("org.bluez.Battery1").and_then(|b| b.get("Percentage")).and_then(|v| v.0.as_u64()).map(|x| x as u8),
+                    });
+                }
+            }
+            if let Some(a) = ifs.get("org.bluez.Adapter1")
+                && a.get("Discovering").and_then(|v| v.0.as_u64()).unwrap_or(0) != 0
             {
-                bt.connected.push(d.get("Alias").and_then(|v| v.0.as_str()).unwrap_or("Device").to_string());
+                bt.scanning = true;
             }
         }
     }
+    if let Some(d) = app.st.bt.devices.iter().find(|d| d.path == app.st.bt.busy)
+        && d.connected != app.st.bt.busy_from
+    {
+        app.st.bt.busy.clear();
+    }
+    // connected first, then paired, then the rest; by name
+    app.st.bt.devices.sort_by(|a, b| b.connected.cmp(&a.connected).then(b.paired.cmp(&a.paired)).then(a.name.cmp(&b.name)));
+    app.mark(topic::BT);
+}
+
+/// A method call whose answer we do not wait for (Bluetooth connects take seconds).
+fn call_nowait(c: &LocalConnection, dest: &str, path: &str, iface: &str, method: &str) {
+    if let Ok(m) = Message::new_method_call(dest, path, iface, method) {
+        let _ = c.channel().send(m);
+        c.channel().flush();
+    }
+}
+
+pub fn bt_device(app: &mut App, path: &str) {
+    let Some(c) = app.svc.bus.system.clone() else { return };
+    let Some(d) = app.st.bt.devices.iter().find(|d| d.path == path).cloned() else { return };
+    if !app.st.bt.powered {
+        set_bt(app, true);
+    }
+    let method = if d.connected {
+        "Disconnect"
+    } else if d.paired {
+        "Connect"
+    } else {
+        // pairing a new device: BlueZ connects it afterwards
+        "Pair"
+    };
+    call_nowait(&c, "org.bluez", path, "org.bluez.Device1", method);
+    app.st.bt.busy = path.to_string();
+    app.st.bt.busy_from = d.connected;
+    app.mark(topic::BT);
+}
+
+pub fn bt_scan(app: &mut App, on: bool) {
+    let Some(c) = app.svc.bus.system.clone() else { return };
+    let p = c.with_proxy("org.bluez", "/", T);
+    type Objs = HashMap<Path<'static>, HashMap<String, PropMap>>;
+    let r: Result<(Objs,), _> = p.method_call("org.freedesktop.DBus.ObjectManager", "GetManagedObjects", ());
+    if let Ok((objs,)) = r {
+        for (path, ifs) in objs {
+            if ifs.contains_key("org.bluez.Adapter1") {
+                call_nowait(&c, "org.bluez", &path, "org.bluez.Adapter1", if on { "StartDiscovery" } else { "StopDiscovery" });
+            }
+        }
+    }
+    app.st.bt.scanning = on;
     app.mark(topic::BT);
 }
 

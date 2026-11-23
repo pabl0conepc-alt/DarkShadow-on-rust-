@@ -53,6 +53,10 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
     let mut anim = c.rev.animating(now);
     if c.tab == 1 {
         anim |= overview(cv, ctx, hits, bx, by, bw);
+    } else if c.view == 1 {
+        wifi_view(cv, ctx, &ui.control, hits, bx, by, bw, y + h - 12.0);
+    } else if c.view == 2 {
+        anim |= bt_view(cv, ctx, hits, bx, by, bw, y + h - 12.0);
     } else {
         // sliders
         let st = ctx.st;
@@ -86,7 +90,7 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
                 }
             }
         };
-        wide(cv, ctx, hits, bx, by, half, st.net.icon(), "Wi-Fi", &wifi_sub, st.net.wifi_on, Act::Wifi);
+        wide(cv, ctx, hits, bx, by, half, st.net.icon(), "Wi-Fi", &wifi_sub, st.net.wifi_on, Act::Wifi, Act::CcView(1));
         let bt_sub = if !st.bt.present {
             "No adapter".to_string()
         } else if !st.bt.powered {
@@ -97,7 +101,7 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
             st.bt.connected.join(", ")
         };
         let bt_icon = if st.bt.powered { "bluetooth" } else { "bluetooth_disabled" };
-        wide(cv, ctx, hits, bx + half + 8.0, by, half, bt_icon, "Bluetooth", &bt_sub, st.bt.powered, Act::Bluetooth);
+        wide(cv, ctx, hits, bx + half + 8.0, by, half, bt_icon, "Bluetooth", &bt_sub, st.bt.powered, Act::Bluetooth, Act::CcView(2));
         by += 72.0;
         // quick switches
         let tiles = [
@@ -150,17 +154,24 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn wide(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, x: f32, y: f32, w: f32, icon: &str, label: &str, sub: &str, on: bool, act: Act) {
+fn wide(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, x: f32, y: f32, w: f32, icon: &str, label: &str, sub: &str, on: bool, act: Act, more: Act) {
     let p = ctx.th.pal;
-    let hov = hits.add(x, y, w, 64.0, act);
+    let hov = hits.add(x, y, w - 40.0, 64.0, act);
+    // the arrow opens the list
+    let mhov = hits.add(x + w - 40.0, y, 40.0, 64.0, more);
     let pressed = hits.is_pressed_last();
     let r = if pressed { 16.0 } else { 24.0 };
     let bg = if on { p.primary } else if hov { p.card_hi } else { p.card };
     cv.rrect(x, y, w, 64.0, r, bg);
     let (fg, dim) = if on { (p.ink_primary, p.ink_primary.alpha(0.7)) } else { (p.fg, p.dim) };
     cv.icon(icon, x + 28.0, y + 32.0, 22.0, fg);
-    cv.text_max(x + 52.0, y + 23.0, label, Face::Semi, 13.0, fg, Align::Left, w - 62.0);
-    cv.text_max(x + 52.0, y + 43.0, sub, Face::Regular, 11.0, dim, Align::Left, w - 62.0);
+    cv.text_max(x + 52.0, y + 23.0, label, Face::Semi, 13.0, fg, Align::Left, w - 96.0);
+    cv.text_max(x + 52.0, y + 43.0, sub, Face::Regular, 11.0, dim, Align::Left, w - 96.0);
+    cv.line(x + w - 40.0, y + 18.0, x + w - 40.0, y + 46.0, 1.0, fg.alpha(0.25));
+    if mhov {
+        cv.circle(x + w - 20.0, y + 32.0, 15.0, fg.alpha(0.12));
+    }
+    cv.icon("chevron_right", x + w - 20.0, y + 32.0, 20.0, fg);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -303,3 +314,162 @@ fn overview(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, x: f32, y: f32, w: f32)
 
 #[allow(dead_code)]
 fn _unused(_: Rgba) {}
+
+#[allow(clippy::too_many_arguments)]
+fn list_header(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, x: f32, y: f32, w: f32, title: &str, on: bool, toggle: Act, scan: Act, scanning: bool) {
+    let p = ctx.th.pal;
+    icon_button(cv, hits, x + 20.0, y + 20.0, 18.0, "chevron_left", p.fg, p.card, p.card_hi, Act::CcView(0));
+    cv.text(x + 50.0, y + 20.0, title, Face::Semi, 17.0, p.fg, Align::Left);
+    icon_button(cv, hits, x + w - 96.0, y + 20.0, 18.0, if scanning { "graphic_eq" } else { "refresh" }, p.fg, p.card, p.card_hi, scan);
+    // the switch
+    let (sx, sy) = (x + w - 60.0, y + 4.0);
+    hits.add(sx - 4.0, sy - 2.0, 64.0, 36.0, toggle);
+    if on {
+        cv.rrect(sx, sy, 56.0, 32.0, 16.0, p.primary);
+        cv.circle(sx + 40.0, sy + 16.0, 12.0, p.ink_primary);
+    } else {
+        cv.rrect(sx, sy, 56.0, 32.0, 16.0, p.card);
+        cv.rrect_stroke(sx, sy, 56.0, 32.0, 16.0, 2.0, p.dim.alpha(0.7));
+        cv.circle(sx + 16.0, sy + 16.0, 8.0, p.dim);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn wifi_view(cv: &mut Canvas, ctx: &Ctx, cu: &crate::ui::ControlUi, hits: &mut Hits, x: f32, y: f32, w: f32, bottom: f32) {
+    let p = ctx.th.pal;
+    let net = &ctx.st.net;
+    list_header(cv, ctx, hits, x, y, w, "Wi-Fi", net.wifi_on, Act::Wifi, Act::WifiScan, false);
+    let mut yy = y + 54.0;
+    if !net.ok {
+        cv.text(x + w / 2.0, yy + 60.0, "NetworkManager is not running", Face::Medium, 13.0, p.dim, Align::Center);
+        return;
+    }
+    if !net.wifi_on {
+        cv.shape(Shape::Cookie(9), x + w / 2.0, yy + 70.0, 30.0, 0.0, p.card);
+        cv.icon("wifi_off", x + w / 2.0, yy + 70.0, 26.0, p.dim);
+        cv.text(x + w / 2.0, yy + 122.0, "Wi-Fi is off", Face::Medium, 13.0, p.dim, Align::Center);
+        return;
+    }
+    // the password for a new secured network
+    if let Some(ssid) = &cu.pw_for {
+        cv.rrect(x, yy, w, 132.0, 24.0, p.container);
+        cv.text_max(x + 18.0, yy + 24.0, &format!("Password for {ssid}"), Face::Semi, 14.0, p.ink_container, Align::Left, w - 36.0);
+        cv.rrect(x + 14.0, yy + 42.0, w - 28.0, 40.0, 20.0, p.surface);
+        let dots: String = "•".repeat(cu.pw.chars().count());
+        let tw = cv.text_max(x + 30.0, yy + 62.0, &dots, Face::Bold, 14.0, p.fg, Align::Left, w - 70.0);
+        cv.rrect(x + 32.0 + tw, yy + 52.0, 2.0, 20.0, 1.0, p.primary);
+        let bw = 96.0;
+        let hc = hits.add(x + w - 2.0 * bw - 22.0, yy + 92.0, bw, 30.0, Act::PwCancel);
+        cv.rrect(x + w - 2.0 * bw - 22.0, yy + 92.0, bw, 30.0, 15.0, if hc { p.card_hi } else { p.card });
+        cv.text(x + w - 1.5 * bw - 22.0, yy + 107.0, "Cancel", Face::Semi, 12.0, p.fg, Align::Center);
+        let hk = hits.add(x + w - bw - 14.0, yy + 92.0, bw, 30.0, Act::PwSubmit);
+        cv.rrect(x + w - bw - 14.0, yy + 92.0, bw, 30.0, 15.0, if hk { p.primary.lighter(1.08) } else { p.primary });
+        cv.text(x + w - bw / 2.0 - 14.0, yy + 107.0, "Connect", Face::Semi, 12.0, p.ink_primary, Align::Center);
+        yy += 144.0;
+    }
+    if net.aps.is_empty() {
+        cv.text(x + w / 2.0, yy + 40.0, "Looking for networks…", Face::Medium, 13.0, p.dim, Align::Center);
+        return;
+    }
+    for ap in &net.aps {
+        if yy + 60.0 > bottom {
+            break;
+        }
+        let connecting = net.connecting == ap.ssid;
+        let hov = hits.add(x, yy, w, 56.0, Act::WifiPick(ap.ssid.clone()));
+        let bg = if ap.active { p.primary } else if hov { p.card_hi } else { p.card };
+        cv.rrect(x, yy, w, 56.0, 18.0, bg);
+        let (fg, dim) = if ap.active { (p.ink_primary, p.ink_primary.alpha(0.75)) } else { (p.fg, p.dim) };
+        let icon = match ap.strength {
+            0..=24 => "network_wifi_1_bar",
+            25..=49 => "network_wifi_2_bar",
+            50..=74 => "network_wifi_3_bar",
+            _ => "signal_wifi_4_bar",
+        };
+        cv.icon(icon, x + 28.0, yy + 28.0, 22.0, fg);
+        if ap.secured {
+            cv.icon("lock", x + 37.0, yy + 37.0, 11.0, fg);
+        }
+        cv.text_max(x + 54.0, yy + 20.0, &ap.ssid, Face::Semi, 13.5, fg, Align::Left, w - 70.0);
+        let sub = if ap.active {
+            "Connected · tap to disconnect"
+        } else if connecting {
+            "Connecting…"
+        } else if ap.saved {
+            "Saved"
+        } else if ap.secured {
+            "Secured"
+        } else {
+            "Open"
+        };
+        cv.text_max(x + 54.0, yy + 39.0, sub, Face::Regular, 11.5, dim, Align::Left, w - 70.0);
+        yy += 62.0;
+    }
+}
+
+fn bt_icon(kind: &str) -> &'static str {
+    match kind {
+        k if k.starts_with("audio") => "headphones",
+        k if k.contains("keyboard") => "keyboard_alt",
+        k if k.contains("mouse") || k.contains("tablet") => "mouse",
+        k if k.contains("phone") => "smartphone",
+        k if k.contains("computer") => "computer",
+        k if k.contains("speaker") => "speaker",
+        _ => "devices",
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn bt_view(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, x: f32, y: f32, w: f32, bottom: f32) -> bool {
+    let p = ctx.th.pal;
+    let bt = &ctx.st.bt;
+    list_header(cv, ctx, hits, x, y, w, "Bluetooth", bt.powered, Act::Bluetooth, Act::BtScan, bt.scanning);
+    let mut yy = y + 54.0;
+    if !bt.present {
+        cv.text(x + w / 2.0, yy + 60.0, "No Bluetooth adapter", Face::Medium, 13.0, p.dim, Align::Center);
+        return false;
+    }
+    if !bt.powered {
+        cv.shape(Shape::Cookie(9), x + w / 2.0, yy + 70.0, 30.0, 0.0, p.card);
+        cv.icon("bluetooth_disabled", x + w / 2.0, yy + 70.0, 26.0, p.dim);
+        cv.text(x + w / 2.0, yy + 122.0, "Bluetooth is off", Face::Medium, 13.0, p.dim, Align::Center);
+        return false;
+    }
+    if bt.scanning {
+        cv.text(x + 6.0, yy + 8.0, "Searching for devices…", Face::Medium, 12.0, p.primary, Align::Left);
+        yy += 22.0;
+    }
+    if bt.devices.is_empty() {
+        cv.text(x + w / 2.0, yy + 40.0, "No devices yet: put one in pairing mode and press search", Face::Medium, 12.0, p.dim, Align::Center);
+        return false;
+    }
+    for d in &bt.devices {
+        if yy + 60.0 > bottom {
+            break;
+        }
+        let busy = bt.busy == d.path;
+        let hov = hits.add(x, yy, w, 56.0, Act::BtPick(d.path.clone()));
+        let bg = if d.connected { p.primary } else if hov { p.card_hi } else { p.card };
+        cv.rrect(x, yy, w, 56.0, 18.0, bg);
+        let (fg, dim) = if d.connected { (p.ink_primary, p.ink_primary.alpha(0.75)) } else { (p.fg, p.dim) };
+        cv.icon(bt_icon(&d.icon), x + 28.0, yy + 28.0, 22.0, fg);
+        cv.text_max(x + 54.0, yy + 20.0, &d.name, Face::Semi, 13.5, fg, Align::Left, w - 70.0);
+        let sub = if busy && d.connected {
+            "Disconnecting…".to_string()
+        } else if busy {
+            "Connecting…".to_string()
+        } else if d.connected {
+            match d.battery {
+                Some(b) => format!("Connected · {b}%"),
+                None => "Connected · tap to disconnect".into(),
+            }
+        } else if d.paired {
+            "Paired · tap to connect".into()
+        } else {
+            "Tap to pair".into()
+        };
+        cv.text_max(x + 54.0, yy + 39.0, &sub, Face::Regular, 11.5, dim, Align::Left, w - 70.0);
+        yy += 62.0;
+    }
+    false
+}

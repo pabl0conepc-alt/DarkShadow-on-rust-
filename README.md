@@ -18,6 +18,10 @@ Sem EWW, sem GTK, sem Qt/QML. O `dshell` desenha tudo ele mesmo na CPU, direto e
 | **Papéis de parede (`SUPER + W`)** | **Energia (`CTRL + ALT + Delete`)** |
 | ![](docs/screenshots/picker.jpg) | ![](docs/screenshots/power.jpg) |
 
+| Wi-Fi | Bluetooth |
+|---|---|
+| ![](docs/screenshots/wifi.png) | ![](docs/screenshots/bluetooth.png) |
+
 A ilha dinâmica vira o volume, o microfone, o brilho, o workspace ou o carregador por um instante:
 
 ![Ilha: volume](docs/screenshots/island-volume.png)
@@ -64,7 +68,7 @@ Binário: ~8 MiB (4 MiB são a fonte Google Sans Flex embutida). Primeiro quadro
 | **Widgets** | relógio expressivo (duas linhas altas), cartão "Hi, nome!", CPU · GPU · RAM em formas suaves, foco/pomodoro (Focus/Break, sol ondulado girando), player (capa girando numa forma, anel e linha onduladas, 5 botões), clima, calendário; cores claras/escuras conforme o papel de parede atrás de cada um; `dshell edit` para arrastar |
 | **Visualizador** | barras, espelho, onda ou pontos; cor do tema, degradê, arco-íris ou branco (via `cava`) |
 | **Launcher** | busca com pontuação (prefixo, palavra, letras em ordem), apps mais usados primeiro, ícones do tema, Enter roda o texto se nada combinar |
-| **Central de controle** | brilho, volume, microfone; Wi-Fi e Bluetooth; Não perturbe, Luz noturna, Manter acordado, Modo jogo; música com linha ondulada arrastável; lista de notificações; aba Visão geral (hora, calendário, clima, anéis) |
+| **Central de controle** | brilho, volume, microfone; Wi-Fi e Bluetooth (a seta abre a lista: redes com força do sinal, salvas e protegidas, conectar com senha, desconectar; dispositivos com bateria, procurar, parear, conectar, desconectar); Não perturbe, Luz noturna, Manter acordado, Modo jogo; música com linha ondulada arrastável; lista de notificações; aba Visão geral (hora, calendário, clima, anéis) |
 | **Notificações** | servidor `org.freedesktop.Notifications` próprio (ícones, imagens, ações, substituição, urgência) |
 | **Papel de parede** | desenhado pelo shell, seletor com miniaturas, aleatório, as cores do shell inteiro seguem a imagem (cinza para imagens sem cor) |
 | **Temas** | `auto` (da imagem), `grey` e os 19 esquemas do original (navy, mono, slate, ocean, teal, rose, violet...) ou qualquer cor; estilos de widget `google`, `shadow` (vidro) e `outline`; sua forma (verysunny, cookie, flower, clover...) |
@@ -74,7 +78,7 @@ Binário: ~8 MiB (4 MiB são a fonte Google Sans Flex embutida). Primeiro quadro
 ### Diferenças do original (e por quê)
 
 - **Configurações:** a janela de Configurações cobre as opções do shell; o que ela não mostra (módulos da barra, posições exatas, comandos) fica no `config.toml`, recarregado ao salvar. Ainda não há busca nas configurações.
-- **Ainda não feito:** dock, task view, game bar, área de transferência, captura/gravação de tela, tray (StatusNotifierItem), menus de redes Wi-Fi/dispositivos Bluetooth (há os interruptores), letras de música, sons de interface, tela de bloqueio própria (usa hyprlock/swaylock), tema do SDDM, intro de boas-vindas.
+- **Ainda não feito:** dock, task view, game bar, área de transferência, captura/gravação de tela, tray (StatusNotifierItem), letras de música, sons de interface, tela de bloqueio própria (usa hyprlock/swaylock), tema do SDDM, intro de boas-vindas.
 - **Compositores:** Hyprland e driftwm (no driftwm os bookmarks fazem o papel de workspaces). niri não é suportado.
 - **Ícones:** os Material Symbols usados vêm embutidos como vetores (sem precisar da fonte instalada).
 
@@ -192,6 +196,7 @@ cargo build --release
 cargo test
 cargo run --release --example drawbench     # tempo de cada primitiva de desenho
 cargo run --release --example mpris_mock    # um player MPRIS falso para testar a mídia
+cargo run --release --example sysbus_mock   # NetworkManager + BlueZ falsos (com DBUS_SYSTEM_BUS_ADDRESS)
 ```
 
 ## Créditos
