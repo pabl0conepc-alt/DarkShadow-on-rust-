@@ -134,6 +134,10 @@ pub const PAGES: &[Page] = &[
             sw("widgets.player.enabled", "Player", "The cover in your shape"),
             sw("widgets.weather.enabled", "Weather", ""),
             sw("widgets.calendar.enabled", "Calendar", ""),
+            sec("Dock", "Pinned apps and the open ones; right click an icon to pin or unpin it"),
+            sw("dock.enabled", "Dock", ""),
+            sw("dock.running", "Open apps", "Show apps that are open but not pinned"),
+            sl("dock.size", "Icon size", "", 28.0, 72.0, 2.0, true),
             sec("Visualizer", "Uses cava; it runs only while music plays"),
             sw("widgets.visualizer.enabled", "Visualizer", ""),
             ch(
@@ -242,7 +246,7 @@ fn layout_sig(c: &Config) -> String {
         .map(|x| format!("{}{}{}{}{}", x.enabled, x.anchor, x.x, x.y, x.scale))
         .collect();
     format!(
-        "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+        "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
         c.bar.enabled,
         c.bar.position,
         c.bar.height,
@@ -253,7 +257,9 @@ fn layout_sig(c: &Config) -> String {
         w.visualizer.enabled,
         w.visualizer.height,
         w.fps,
-        c.wallpaper.enabled
+        c.wallpaper.enabled,
+        c.dock.enabled,
+        c.dock.size
     )
 }
 

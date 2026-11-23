@@ -31,6 +31,8 @@ A ilha dinâmica vira o volume, o microfone, o brilho, o workspace ou o carregad
 
 ![Menu de um app do tray](docs/screenshots/tray-menu.png)
 
+![Dock](docs/screenshots/dock.png)
+
 > As capturas vieram do `dshell` rodando de verdade (sway headless, renderização por software, com um player MPRIS de teste). O blur atrás dos cartões aparece no Hyprland/driftwm com as regras de `config/`.
 
 ---
@@ -77,6 +79,7 @@ Binário: ~8 MiB (4 MiB são a fonte Google Sans Flex embutida). Primeiro quadro
 | **Notificações** | servidor `org.freedesktop.Notifications` próprio (ícones, imagens, ações, substituição, urgência) |
 | **Papel de parede** | desenhado pelo shell, seletor com miniaturas, aleatório, as cores do shell inteiro seguem a imagem (cinza para imagens sem cor) |
 | **Temas** | `auto` (da imagem), `grey` e os 19 esquemas do original (navy, mono, slate, ocean, teal, rose, violet...) ou qualquer cor; estilos de widget `google`, `shadow` (vidro) e `outline`; sua forma (verysunny, cookie, flower, clover...) |
+| **Dock** | desligado por padrão (Configurações → Widgets → Dock): apps fixados e os abertos, ponto embaixo dos abertos e traço no focado; clique abre o app ou traz a janela dele (Hyprland e driftwm); clique direito fixa/desafixa (também no launcher); fica acima da barra sem cobrir janelas |
 | **Área de transferência** | `SUPER + V`: o histórico (cliphist, que o shell mantém rodando) com busca; escolher um item o põe de volta no clipboard; imagens aparecem como imagem |
 | **Captura e gravação** | `Print` região, `SHIFT + Print` tela inteira (salva em `~/Pictures/Screenshots` e copia); `SUPER + SHIFT + R` grava uma região, `SUPER + ALT + R` a tela com som (em `~/Videos/Recordings`); enquanto grava, a ilha mostra o tempo e o botão de parar |
 | **Energia** | bloquear, suspender, sair, reiniciar, desligar (teclado ou mouse) |
@@ -85,7 +88,7 @@ Binário: ~8 MiB (4 MiB são a fonte Google Sans Flex embutida). Primeiro quadro
 ### Diferenças do original (e por quê)
 
 - **Configurações:** a janela de Configurações cobre as opções do shell; o que ela não mostra (módulos da barra, posições exatas, comandos) fica no `config.toml`, recarregado ao salvar. Ainda não há busca nas configurações.
-- **Ainda não feito:** dock, task view, game bar, letras de música, sons de interface, tela de bloqueio própria (usa hyprlock/swaylock), tema do SDDM, intro de boas-vindas.
+- **Ainda não feito:** task view, game bar, letras de música, sons de interface, tela de bloqueio própria (usa hyprlock/swaylock), tema do SDDM, intro de boas-vindas.
 - **Compositores:** Hyprland e driftwm (no driftwm os bookmarks fazem o papel de workspaces). niri não é suportado.
 - **Ícones:** os Material Symbols usados vêm embutidos como vetores (sem precisar da fonte instalada).
 

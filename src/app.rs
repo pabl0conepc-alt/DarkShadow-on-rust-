@@ -369,6 +369,7 @@ impl App {
             Kind::Picker => ui::picker::draw(&mut cv, &ctx, ui, &mut hits),
             Kind::Settings => ui::settings::draw(&mut cv, &ctx, ui, &mut hits),
             Kind::Menu => ui::menu::draw(&mut cv, &ctx, ui, &mut hits),
+            Kind::Dock => ui::dock::draw(&mut cv, &ctx, ui, &mut hits),
             Kind::Widget(w) => ui::widgets::draw(&mut cv, &ctx, ui, &mut hits, w),
             Kind::Viz => ui::widgets::draw_viz(&mut cv, &ctx, ui),
         };

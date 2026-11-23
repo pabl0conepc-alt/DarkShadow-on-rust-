@@ -54,6 +54,8 @@ pub struct Wm {
     pub covered: bool,
     pub fullscreen: bool,
     pub layout: String,
+    /// open windows grouped by app: (app id / class, how many, one of them is focused)
+    pub apps: Vec<(String, u32, bool)>,
 }
 
 #[derive(Clone, Debug, Default)]

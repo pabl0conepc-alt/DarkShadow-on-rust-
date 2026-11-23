@@ -4,6 +4,7 @@
 pub mod bar;
 pub mod card;
 pub mod control;
+pub mod dock;
 pub mod launcher;
 pub mod menu;
 pub mod picker;
@@ -90,6 +91,7 @@ pub enum Kind {
     Picker,
     Settings,
     Menu,
+    Dock,
     Widget(WidgetId),
     Viz,
 }
@@ -172,6 +174,8 @@ pub enum Act {
     TrayMenu(String),
     TrayAlt(String),
     MenuPick(i32),
+    DockClick(String),
+    DockPin(String),
     WifiPick(String),
     WifiScan,
     BtPick(String),

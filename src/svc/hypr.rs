@@ -139,6 +139,7 @@ pub fn refresh(app: &mut App) {
     let wss: Option<Value> = request(app, "j/workspaces").and_then(|s| serde_json::from_str(&s).ok());
     let aw: Option<Value> = request(app, "j/activeworkspace").and_then(|s| serde_json::from_str(&s).ok());
     let win: Option<Value> = request(app, "j/activewindow").and_then(|s| serde_json::from_str(&s).ok());
+    let clients: Option<Value> = if app.cfg.dock.enabled { request(app, "j/clients").and_then(|s| serde_json::from_str(&s).ok()) } else { None };
     let mut list = Vec::new();
     if let Some(Value::Array(a)) = wss {
         for w in a {
@@ -169,6 +170,24 @@ pub fn refresh(app: &mut App) {
             wm.class.clear();
         }
     }
+    let mut apps: Vec<(String, u32, bool)> = Vec::new();
+    if let Some(Value::Array(cl)) = clients {
+        let focused = app.st.wm.class.clone();
+        for c in cl {
+            let class = c["class"].as_str().unwrap_or("").to_string();
+            if class.is_empty() || c["workspace"]["id"].as_i64().unwrap_or(1) < 0 {
+                continue;
+            }
+            match apps.iter_mut().find(|a| a.0 == class) {
+                Some(a) => a.1 += 1,
+                None => {
+                    let f = class == focused;
+                    apps.push((class, 1, f));
+                }
+            }
+        }
+    }
+    app.st.wm.apps = apps;
     let ws_changed = old_active != app.st.wm.active && old_active != 0;
     let cov_changed = old_covered != app.st.wm.covered;
     app.mark(topic::WM);

@@ -106,7 +106,7 @@ pub fn build(app: &mut App) {
         .surfs
         .iter()
         .map(|s| s.kind)
-        .filter(|k| matches!(k, Kind::Bar | Kind::Widget(_) | Kind::Viz) || (!keep_wall && matches!(k, Kind::Wall(_))))
+        .filter(|k| matches!(k, Kind::Bar | Kind::Dock | Kind::Widget(_) | Kind::Viz) || (!keep_wall && matches!(k, Kind::Wall(_))))
         .collect();
     for k in old {
         app.destroy(k);
@@ -144,6 +144,25 @@ pub fn build(app: &mut App) {
             }
             open_widget(app, w, out.clone());
         }
+    }
+    if c.dock.enabled {
+        app.svc.apps.ensure();
+        let s = c.dock.size.clamp(28, 72);
+        let sw = app.outputs.info(&out).and_then(|i| i.logical_size).map(|s| s.0 as u32).unwrap_or(1920);
+        app.open(Spec {
+            kind: Kind::Dock,
+            layer: Layer::Top,
+            ns: "dshell-dock",
+            anchor: Anchor::BOTTOM,
+            size: (sw.min(1200), s + 20 + 4 + 40),
+            // windows keep away from the dock itself (it stacks above a bottom bar on its own)
+            exclusive: (s + 20 + 8) as i32,
+            margin: (0, 0, 0, 0),
+            kb: KeyboardInteractivity::None,
+            output: Some(out.clone()),
+            topics: topic::WM | topic::APPS | topic::THEME,
+            fps: 0,
+        });
     }
     if c.bar.enabled {
         let top = c.bar.position == "top";

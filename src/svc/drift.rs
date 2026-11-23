@@ -217,6 +217,22 @@ fn process(app: &mut App) {
         )
     }) || st["fullscreen"].as_array().map(|a| !a.is_empty()).unwrap_or(false);
     let focused = wins.iter().find(|w| w["is_focused"].as_bool() == Some(true));
+    let mut apps: Vec<(String, u32, bool)> = Vec::new();
+    for w in &live {
+        let id = w["app_id"].as_str().unwrap_or("").to_string();
+        if id.is_empty() {
+            continue;
+        }
+        let f = w["is_focused"].as_bool() == Some(true);
+        match apps.iter_mut().find(|a| a.0 == id) {
+            Some(a) => {
+                a.1 += 1;
+                a.2 |= f;
+            }
+            None => apps.push((id, 1, f)),
+        }
+    }
+    app.st.wm.apps = apps;
     let wm = &mut app.st.wm;
     let old_cov = wm.covered;
     wm.workspaces = list;

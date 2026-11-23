@@ -17,6 +17,8 @@ pub struct Entry {
     pub terminal: bool,
     /// lowercase name + keywords for searching
     pub hay: String,
+    /// StartupWMClass, lowercase (to match windows to apps)
+    pub wmclass: String,
 }
 
 #[derive(Default)]
@@ -102,6 +104,7 @@ fn parse(path: &Path, id: &str) -> Option<Entry> {
         keywords,
         terminal: get("Terminal") == "true",
         hay,
+        wmclass: get("StartupWMClass").to_lowercase(),
     })
 }
 
@@ -271,6 +274,7 @@ fn scan(root: &Path, dir: &Path, map: &mut HashMap<String, Entry>) {
                     keywords: String::new(),
                     terminal: false,
                     hay: String::new(),
+                    wmclass: String::new(),
                 },
             );
         }
@@ -348,6 +352,7 @@ mod tests {
             keywords: String::new(),
             terminal: false,
             hay: name.to_lowercase(),
+            wmclass: String::new(),
         }
     }
 
@@ -365,4 +370,20 @@ mod tests {
         assert_eq!(command(&e("Firefox", "firefox %u"), "kitty"), "firefox");
         assert_eq!(command(&e("Files", "nautilus --new-window %U"), "kitty"), "nautilus --new-window");
     }
+}
+
+/// The app a window belongs to (by its class / app id).
+pub fn for_window<'a>(list: &'a [Entry], class: &str) -> Option<(usize, &'a Entry)> {
+    let c = class.to_lowercase();
+    if c.is_empty() {
+        return None;
+    }
+    let stem = |e: &Entry| e.id.trim_end_matches(".desktop").to_lowercase();
+    list.iter()
+        .enumerate()
+        .find(|(_, e)| e.wmclass == c)
+        .or_else(|| list.iter().enumerate().find(|(_, e)| stem(e) == c))
+        .or_else(|| list.iter().enumerate().find(|(_, e)| stem(e).rsplit('.').next() == Some(c.as_str())))
+        .or_else(|| list.iter().enumerate().find(|(_, e)| e.name.to_lowercase() == c))
+        .or_else(|| list.iter().enumerate().find(|(_, e)| e.exec.split_whitespace().next().map(|x| x.rsplit('/').next().unwrap_or(x).to_lowercase()) == Some(c.clone())))
 }

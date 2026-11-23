@@ -82,6 +82,7 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
         let ry = ly + (row - l.top) as f32 * row_h;
         let sel = row == l.sel;
         let hov = hits.add(x + 10.0, ry, w - 20.0, row_h - 4.0, Act::Launch(idx));
+        hits.with_right(Act::DockPin(e.id.clone()));
         if sel {
             cv.rrect(x + 10.0, ry, w - 20.0, row_h - 4.0, 18.0, p.container);
         } else if hov {

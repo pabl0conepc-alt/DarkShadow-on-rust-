@@ -41,6 +41,7 @@ pub struct Config {
     pub weather: WeatherCfg,
     pub apps: AppsCfg,
     pub performance: PerfCfg,
+    pub dock: DockCfg,
 }
 
 impl Default for Config {
@@ -57,6 +58,7 @@ impl Default for Config {
             weather: WeatherCfg::default(),
             apps: AppsCfg::default(),
             performance: PerfCfg::default(),
+            dock: DockCfg::default(),
         }
     }
 }
@@ -364,6 +366,28 @@ pub struct PerfCfg {
 impl Default for PerfCfg {
     fn default() -> Self {
         PerfCfg { trim_memory: true, gaming: false }
+    }
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(default)]
+pub struct DockCfg {
+    pub enabled: bool,
+    /// desktop file ids of the pinned apps
+    pub pinned: Vec<String>,
+    pub size: u32,
+    /// also show apps that are open but not pinned
+    pub running: bool,
+}
+
+impl Default for DockCfg {
+    fn default() -> Self {
+        DockCfg {
+            enabled: false,
+            pinned: vec!["firefox.desktop".into(), "org.gnome.Nautilus.desktop".into(), "kitty.desktop".into(), "foot.desktop".into()],
+            size: 44,
+            running: true,
+        }
     }
 }
 

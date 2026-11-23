@@ -118,6 +118,12 @@ style = "bars"               # bars | mirror | wave | dots
 color = "accent"             # accent | gradient | rainbow | mono
 fps = 30
 
+[dock]
+enabled = false              # apps pinned + open; right click an icon (or a launcher row) to pin/unpin
+pinned = ["firefox.desktop", "org.gnome.Nautilus.desktop", "kitty.desktop", "foot.desktop"]
+size = 44
+running = true               # also the open apps that are not pinned
+
 [launcher]
 width = 560
 rows = 7

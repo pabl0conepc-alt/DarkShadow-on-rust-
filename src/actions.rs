@@ -319,6 +319,30 @@ pub fn toggle_settings(app: &mut App) {
     });
 }
 
+/// A dock icon: bring the app's window forward when it is open, else start it.
+fn dock_click(app: &mut App, key: &str) {
+    let class = if let Some(c) = key.strip_prefix("class:") {
+        Some(c.to_string())
+    } else {
+        let idx = app.svc.apps.list.iter().position(|e| e.id == key);
+        app.st.wm.apps.iter().find(|(c, _, _)| crate::svc::apps::for_window(&app.svc.apps.list, c).map(|x| Some(x.0) == idx).unwrap_or(false)).map(|(c, _, _)| c.clone())
+    };
+    match class {
+        Some(c) => match app.st.wm.kind {
+            WmKind::Hyprland => hypr::dispatch(app, &format!("focuswindow class:^({})$", c.replace(['(', ')', '^', '$'], ""))),
+            WmKind::Drift => {
+                let _ = drift::request(&serde_json::json!({ "Focus": c }));
+            }
+            WmKind::None => {}
+        },
+        None => {
+            if let Some(i) = app.svc.apps.list.iter().position(|e| e.id == key) {
+                launch(app, i);
+            }
+        }
+    }
+}
+
 /// A tray app's menu above (or below) its icon.
 pub fn open_tray_menu(app: &mut App, service: String, path: String, entries: Vec<crate::svc::tray::MenuEntry>, x: i32) {
     close_others(app, Kind::Menu);
@@ -827,6 +851,17 @@ pub fn act(app: &mut App, a: Act) {
         Act::TrayMenu(k) => {
             let x = app.ui.last_press_x as i32;
             crate::svc::tray::click(app, &k, 2, x, 0)
+        }
+        Act::DockClick(key) => dock_click(app, &key),
+        Act::DockPin(id) => {
+            let mut pinned = app.cfg.dock.pinned.clone();
+            if let Some(i) = pinned.iter().position(|p| p == &id) {
+                pinned.remove(i);
+            } else {
+                pinned.push(id);
+            }
+            let v = toml::Value::Array(pinned.into_iter().map(toml::Value::String).collect());
+            crate::settings::set(app, "dock.pinned", v);
         }
         Act::MenuPick(id) => {
             let (s, p) = (app.ui.menu.service.clone(), app.ui.menu.path.clone());
@@ -1628,6 +1663,7 @@ pub fn command(app: &mut App, line: &str) -> String {
                 "picker" => Kind::Picker,
                 "settings" => Kind::Settings,
                 "menu" => Kind::Menu,
+                "dock" => Kind::Dock,
                 _ => return "error: panel".into(),
             };
             if a.get(4) == Some(&"right") {
