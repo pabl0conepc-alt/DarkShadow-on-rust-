@@ -64,7 +64,10 @@ pub fn start(app: &mut App) {
     sysmon::start(app);
     load_user(app);
     // the clipboard history: cliphist stores what you copy while the shell runs
-    if crate::proc::which("cliphist") && crate::proc::which("wl-paste") && !crate::proc::running("wl-paste --watch cliphist") {
+    if crate::proc::which("cliphist")
+        && crate::proc::which("wl-paste")
+        && !crate::proc::running("wl-paste --watch cliphist")
+    {
         app.svc.clip_watch = crate::proc::bound(&["wl-paste", "--watch", "cliphist", "store"]);
     }
     app.mark(topic::ALL);
@@ -82,7 +85,10 @@ pub fn load_user(app: &mut App) {
             }
         }
     }
-    let host = std::fs::read_to_string("/proc/sys/kernel/hostname").unwrap_or_default().trim().to_string();
+    let host = std::fs::read_to_string("/proc/sys/kernel/hostname")
+        .unwrap_or_default()
+        .trim()
+        .to_string();
     let mut distro = String::new();
     if let Ok(osr) = std::fs::read_to_string("/etc/os-release") {
         for l in osr.lines() {

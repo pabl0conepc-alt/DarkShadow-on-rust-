@@ -42,7 +42,10 @@ pub fn widget_size(w: WidgetId, scale: f32, clock_style: &str) -> (u32, u32) {
         WidgetId::Weather => (300, 150),
         WidgetId::Calendar => (300, 300),
     };
-    (((a as f32 * scale) as i32 + SHADOW * 2) as u32, ((b as f32 * scale) as i32 + SHADOW * 2) as u32)
+    (
+        ((a as f32 * scale) as i32 + SHADOW * 2) as u32,
+        ((b as f32 * scale) as i32 + SHADOW * 2) as u32,
+    )
 }
 
 pub fn bar_height(app: &App) -> u32 {
@@ -78,7 +81,10 @@ fn pick_output(app: &mut App) {
     let outs: Vec<_> = app.outputs.outputs().collect();
     let chosen = outs
         .iter()
-        .find(|o| !want.is_empty() && app.outputs.info(o).and_then(|i| i.name).as_deref() == Some(want.as_str()))
+        .find(|o| {
+            !want.is_empty()
+                && app.outputs.info(o).and_then(|i| i.name).as_deref() == Some(want.as_str())
+        })
         .or(outs.first())
         .cloned();
     app.svc.main_output = chosen;
@@ -111,12 +117,17 @@ pub fn build(app: &mut App) {
         .surfs
         .iter()
         .map(|s| s.kind)
-        .filter(|k| matches!(k, Kind::Bar | Kind::Dock | Kind::Widget(_) | Kind::Viz) || (!keep_wall && matches!(k, Kind::Wall(_))))
+        .filter(|k| {
+            matches!(k, Kind::Bar | Kind::Dock | Kind::Widget(_) | Kind::Viz)
+                || (!keep_wall && matches!(k, Kind::Wall(_)))
+        })
         .collect();
     for k in old {
         app.destroy(k);
     }
-    let Some(out) = app.svc.main_output.clone() else { return };
+    let Some(out) = app.svc.main_output.clone() else {
+        return;
+    };
     if app.cfg.wallpaper.enabled {
         let outs: Vec<_> = app.outputs.outputs().collect();
         for o in outs {
@@ -153,7 +164,12 @@ pub fn build(app: &mut App) {
     if c.dock.enabled {
         app.svc.apps.ensure();
         let s = c.dock.size.clamp(28, 72);
-        let sw = app.outputs.info(&out).and_then(|i| i.logical_size).map(|s| s.0 as u32).unwrap_or(1920);
+        let sw = app
+            .outputs
+            .info(&out)
+            .and_then(|i| i.logical_size)
+            .map(|s| s.0 as u32)
+            .unwrap_or(1920);
         app.open(Spec {
             kind: Kind::Dock,
             layer: Layer::Top,
@@ -201,7 +217,10 @@ pub fn build(app: &mut App) {
     }
 }
 
-fn open_wall(app: &mut App, o: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput) {
+fn open_wall(
+    app: &mut App,
+    o: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+) {
     app.open(Spec {
         kind: Kind::Wall(o.id().protocol_id()),
         layer: Layer::Background,
@@ -241,7 +260,11 @@ pub fn widget_margin(app: &App, w: WidgetId) -> (Anchor, (i32, i32, i32, i32)) {
     }
 }
 
-fn open_widget(app: &mut App, w: WidgetId, out: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput) {
+fn open_widget(
+    app: &mut App,
+    w: WidgetId,
+    out: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+) {
     let wc = w.cfg(&app.cfg);
     let size = widget_size(w, wc.scale.clamp(0.5, 2.0), &app.cfg.widgets.clock.style);
     let (anchor, margin) = widget_margin(app, w);
@@ -257,7 +280,11 @@ fn open_widget(app: &mut App, w: WidgetId, out: smithay_client_toolkit::reexport
         output: Some(out),
         topics: widget_topics(w),
         // the CPU · GPU · RAM cookies turn once a minute: a few frames a second are plenty
-        fps: if w == WidgetId::Trio { app.cfg.widgets.fps.clamp(1, 2) } else { app.cfg.widgets.fps.clamp(5, 60) },
+        fps: if w == WidgetId::Trio {
+            app.cfg.widgets.fps.clamp(1, 2)
+        } else {
+            app.cfg.widgets.fps.clamp(5, 60)
+        },
     });
 }
 
@@ -275,10 +302,13 @@ pub fn move_widget(app: &mut App, w: WidgetId) {
 
 fn clock_tick(app: &mut App) {
     // the minute: always, on the dot
-    let _ = app.lh.insert_source(Timer::from_duration(crate::clock::until_next(false)), |_, _, app: &mut App| {
-        app.mark(topic::CLOCK);
-        TimeoutAction::ToDuration(crate::clock::until_next(false))
-    });
+    let _ = app.lh.insert_source(
+        Timer::from_duration(crate::clock::until_next(false)),
+        |_, _, app: &mut App| {
+            app.mark(topic::CLOCK);
+            TimeoutAction::ToDuration(crate::clock::until_next(false))
+        },
+    );
     restart_clock(app);
 }
 
@@ -293,24 +323,27 @@ pub fn restart_clock(app: &mut App) {
         return;
     }
     app.svc.sec_ticker = true;
-    let _ = app.lh.insert_source(Timer::from_duration(crate::clock::until_next(true)), |_, _, app: &mut App| {
-        if !needs_seconds(app) {
-            app.svc.sec_ticker = false;
-            return TimeoutAction::Drop;
-        }
-        let mut t = topic::SECOND;
-        if app.cfg.bar.seconds {
-            t |= topic::CLOCK;
-        }
-        if app.st.rec.on {
-            t |= topic::REC;
-        }
-        if app.ui.focus.running {
-            crate::actions::focus_tick(app);
-        }
-        app.mark(t);
-        TimeoutAction::ToDuration(crate::clock::until_next(true))
-    });
+    let _ = app.lh.insert_source(
+        Timer::from_duration(crate::clock::until_next(true)),
+        |_, _, app: &mut App| {
+            if !needs_seconds(app) {
+                app.svc.sec_ticker = false;
+                return TimeoutAction::Drop;
+            }
+            let mut t = topic::SECOND;
+            if app.cfg.bar.seconds {
+                t |= topic::CLOCK;
+            }
+            if app.st.rec.on {
+                t |= topic::REC;
+            }
+            if app.ui.focus.running {
+                crate::actions::focus_tick(app);
+            }
+            app.mark(t);
+            TimeoutAction::ToDuration(crate::clock::until_next(true))
+        },
+    );
 }
 
 // ------------------------------------------------------------------ config
@@ -334,22 +367,32 @@ fn watch_config(app: &mut App) {
     let c = std::ffi::CString::new(dir.to_string_lossy().as_bytes()).unwrap();
     // SAFETY: as above.
     unsafe {
-        libc::inotify_add_watch(fd, c.as_ptr(), libc::IN_CLOSE_WRITE | libc::IN_MOVED_TO | libc::IN_CREATE);
+        libc::inotify_add_watch(
+            fd,
+            c.as_ptr(),
+            libc::IN_CLOSE_WRITE | libc::IN_MOVED_TO | libc::IN_CREATE,
+        );
     }
-    let _ = app.lh.insert_source(Generic::new(Fd(fd), Interest::READ, Mode::Level), move |_, _, app| {
-        let mut buf = [0u8; 4096];
-        // SAFETY: reading inotify events into our buffer.
-        while unsafe { libc::read(fd, buf.as_mut_ptr() as *mut _, buf.len()) } > 0 {}
-        if !app.svc.reload_armed {
-            app.svc.reload_armed = true;
-            let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(120)), |_, _, app: &mut App| {
-                app.svc.reload_armed = false;
-                reload(app);
-                TimeoutAction::Drop
-            });
-        }
-        Ok(PostAction::Continue)
-    });
+    let _ = app.lh.insert_source(
+        Generic::new(Fd(fd), Interest::READ, Mode::Level),
+        move |_, _, app| {
+            let mut buf = [0u8; 4096];
+            // SAFETY: reading inotify events into our buffer.
+            while unsafe { libc::read(fd, buf.as_mut_ptr() as *mut _, buf.len()) } > 0 {}
+            if !app.svc.reload_armed {
+                app.svc.reload_armed = true;
+                let _ = app.lh.insert_source(
+                    Timer::from_duration(Duration::from_millis(120)),
+                    |_, _, app: &mut App| {
+                        app.svc.reload_armed = false;
+                        reload(app);
+                        TimeoutAction::Drop
+                    },
+                );
+            }
+            Ok(PostAction::Continue)
+        },
+    );
 }
 
 pub fn reload(app: &mut App) {
@@ -358,7 +401,8 @@ pub fn reload(app: &mut App) {
         crate::actions::system_notice(app, "Config error", &e);
         return;
     }
-    let wall_changed = cfg.wallpaper.path != app.cfg.wallpaper.path && !cfg.wallpaper.path.is_empty();
+    let wall_changed =
+        cfg.wallpaper.path != app.cfg.wallpaper.path && !cfg.wallpaper.path.is_empty();
     app.cfg = cfg;
     app.theme = make_theme(&app.cfg, &app.st);
     build(app);
@@ -393,7 +437,10 @@ pub fn wallpaper_list(app: &App) -> Vec<PathBuf> {
                 .map(|e| e.path())
                 .filter(|p| {
                     matches!(
-                        p.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()).as_deref(),
+                        p.extension()
+                            .and_then(|e| e.to_str())
+                            .map(|e| e.to_lowercase())
+                            .as_deref(),
                         Some("jpg" | "jpeg" | "png")
                     )
                 })
@@ -476,13 +523,15 @@ pub fn set_wallpaper(app: &mut App, path: PathBuf, remember: bool) {
 }
 
 pub fn trim_soon(app: &mut App) {
-    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(1500)), |_, _, _app: &mut App| {
-        // SAFETY: returns freed heap to the system; no preconditions.
-        #[cfg(target_env = "gnu")]
-        unsafe {
-            libc::malloc_trim(0);
-        }
-        TimeoutAction::Drop
-    });
+    let _ = app.lh.insert_source(
+        Timer::from_duration(Duration::from_millis(1500)),
+        |_, _, _app: &mut App| {
+            // SAFETY: returns freed heap to the system; no preconditions.
+            #[cfg(target_env = "gnu")]
+            unsafe {
+                libc::malloc_trim(0);
+            }
+            TimeoutAction::Drop
+        },
+    );
 }
-

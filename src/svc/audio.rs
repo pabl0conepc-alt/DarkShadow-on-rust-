@@ -42,10 +42,13 @@ fn subscribe(app: &mut App) {
         },
         |app| {
             app.svc.audio.sub = None;
-            let _ = app.lh.insert_source(Timer::from_duration(Duration::from_secs(3)), |_, _, app: &mut App| {
-                subscribe(app);
-                TimeoutAction::Drop
-            });
+            let _ = app.lh.insert_source(
+                Timer::from_duration(Duration::from_secs(3)),
+                |_, _, app: &mut App| {
+                    subscribe(app);
+                    TimeoutAction::Drop
+                },
+            );
         },
     );
 }
@@ -55,11 +58,14 @@ fn arm(app: &mut App) {
         return;
     }
     app.svc.audio.armed = true;
-    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(25)), |_, _, app: &mut App| {
-        app.svc.audio.armed = false;
-        refresh(app);
-        TimeoutAction::Drop
-    });
+    let _ = app.lh.insert_source(
+        Timer::from_duration(Duration::from_millis(25)),
+        |_, _, app: &mut App| {
+            app.svc.audio.armed = false;
+            refresh(app);
+            TimeoutAction::Drop
+        },
+    );
 }
 
 fn parse(line: &str) -> Option<(f32, bool)> {
@@ -75,7 +81,11 @@ pub fn refresh(app: &mut App) {
     app.svc.audio.busy = true;
     proc::capture(
         app,
-        &["sh", "-c", "wpctl get-volume @DEFAULT_AUDIO_SINK@; echo; wpctl get-volume @DEFAULT_AUDIO_SOURCE@"],
+        &[
+            "sh",
+            "-c",
+            "wpctl get-volume @DEFAULT_AUDIO_SINK@; echo; wpctl get-volume @DEFAULT_AUDIO_SOURCE@",
+        ],
         |app, out| {
             app.svc.audio.busy = false;
             let mut lines = out.lines().filter(|l| l.starts_with("Volume"));
@@ -93,9 +103,18 @@ pub fn refresh(app: &mut App) {
             let new = (app.st.audio.vol, app.st.audio.muted, app.st.audio.mic_muted);
             if old != new {
                 app.mark(topic::AUDIO);
-                let quiet = app.svc.audio.quiet_until.map(|t| t > std::time::Instant::now()).unwrap_or(false);
+                let quiet = app
+                    .svc
+                    .audio
+                    .quiet_until
+                    .map(|t| t > std::time::Instant::now())
+                    .unwrap_or(false);
                 if !quiet && app.started.elapsed() > Duration::from_secs(2) {
-                    let mode = if old.2 != new.2 { crate::ui::IslandMode::Mic } else { crate::ui::IslandMode::Volume };
+                    let mode = if old.2 != new.2 {
+                        crate::ui::IslandMode::Mic
+                    } else {
+                        crate::ui::IslandMode::Volume
+                    };
                     crate::actions::island_flash(app, mode);
                 }
             }
@@ -125,14 +144,22 @@ pub fn set(app: &mut App, mic: bool, v: f32) {
 
 fn send(app: &mut App, mic: bool, v: f32) {
     app.svc.audio.set_busy = true;
-    let dev = if mic { "@DEFAULT_AUDIO_SOURCE@" } else { "@DEFAULT_AUDIO_SINK@" };
+    let dev = if mic {
+        "@DEFAULT_AUDIO_SOURCE@"
+    } else {
+        "@DEFAULT_AUDIO_SINK@"
+    };
     let val = format!("{:.3}", v);
-    proc::capture(app, &["wpctl", "set-volume", "-l", "1.0", dev, &val], |app, _| {
-        app.svc.audio.set_busy = false;
-        if let Some((m, v)) = app.svc.audio.pending.take() {
-            send(app, m, v);
-        }
-    });
+    proc::capture(
+        app,
+        &["wpctl", "set-volume", "-l", "1.0", dev, &val],
+        |app, _| {
+            app.svc.audio.set_busy = false;
+            if let Some((m, v)) = app.svc.audio.pending.take() {
+                send(app, m, v);
+            }
+        },
+    );
 }
 
 pub fn step(app: &mut App, d: f32) {
@@ -144,12 +171,18 @@ pub fn step(app: &mut App, d: f32) {
 }
 
 pub fn toggle_mute(app: &mut App, mic: bool) {
-    let dev = if mic { "@DEFAULT_AUDIO_SOURCE@" } else { "@DEFAULT_AUDIO_SINK@" };
+    let dev = if mic {
+        "@DEFAULT_AUDIO_SOURCE@"
+    } else {
+        "@DEFAULT_AUDIO_SINK@"
+    };
     if mic {
         app.st.audio.mic_muted = !app.st.audio.mic_muted;
     } else {
         app.st.audio.muted = !app.st.audio.muted;
     }
     app.mark(topic::AUDIO);
-    proc::capture(app, &["wpctl", "set-mute", dev, "toggle"], |app, _| refresh(app));
+    proc::capture(app, &["wpctl", "set-mute", dev, "toggle"], |app, _| {
+        refresh(app)
+    });
 }

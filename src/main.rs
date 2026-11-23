@@ -57,7 +57,10 @@ fn main() {
         "config" => {
             let p = config::path();
             if p.exists() && args.get(1).map(String::as_str) != Some("--force") {
-                eprintln!("{} exists (use `dshell config --force` to overwrite)", p.display());
+                eprintln!(
+                    "{} exists (use `dshell config --force` to overwrite)",
+                    p.display()
+                );
                 std::process::exit(1);
             }
             let _ = std::fs::create_dir_all(p.parent().unwrap());

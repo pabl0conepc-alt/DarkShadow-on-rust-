@@ -17,7 +17,8 @@ const ICON_W: f32 = 34.0;
 fn module_width(cv: &mut Canvas, ctx: &Ctx, m: &str) -> f32 {
     let st = ctx.st;
     match m {
-        "power" | "launcher" | "network" | "volume" | "notifications" | "settings" | "wallpaper" => ICON_W,
+        "power" | "launcher" | "network" | "volume" | "notifications" | "settings"
+        | "wallpaper" => ICON_W,
         "bluetooth" => {
             if st.bt.present {
                 ICON_W
@@ -65,7 +66,14 @@ fn ws_count(ctx: &Ctx) -> usize {
     match st.wm.kind {
         WmKind::Drift => st.wm.workspaces.len().max(1),
         _ => {
-            let max_id = st.wm.workspaces.iter().map(|w| w.id).max().unwrap_or(1).max(st.wm.active) as usize;
+            let max_id = st
+                .wm
+                .workspaces
+                .iter()
+                .map(|w| w.id)
+                .max()
+                .unwrap_or(1)
+                .max(st.wm.active) as usize;
             shown.max(max_id.min(10))
         }
     }
@@ -87,7 +95,11 @@ fn island_target(cv: &mut Canvas, ctx: &Ctx, ui: &Ui) -> f32 {
 
 fn clock_text(ctx: &Ctx) -> String {
     let t = crate::clock::now();
-    let mut s = if ctx.cfg.bar.seconds { format!("{:02}:{:02}:{:02}", t.hour, t.min, t.sec) } else { format!("{:02}:{:02}", t.hour, t.min) };
+    let mut s = if ctx.cfg.bar.seconds {
+        format!("{:02}:{:02}:{:02}", t.hour, t.min, t.sec)
+    } else {
+        format!("{:02}:{:02}", t.hour, t.min)
+    };
     if ctx.cfg.bar.date {
         s = format!("{} {}  {s}", &crate::ui::weekday(t.wday)[..3], t.mday);
     }
@@ -108,7 +120,6 @@ fn idle_width(cv: &mut Canvas, ctx: &Ctx) -> f32 {
     w
 }
 
-
 pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
     let c = &ctx.cfg.bar;
     let p = ctx.th.pal;
@@ -118,10 +129,18 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
     let h = cv.h();
     let top = c.position == "top";
     // auto-hide: the bar slides away; a thin strip at the screen edge brings it back
-    let shown = if c.autohide { ui.bar_rev.value(now) } else { 1.0 };
+    let shown = if c.autohide {
+        ui.bar_rev.value(now)
+    } else {
+        1.0
+    };
     let off = (1.0 - shown) * (bh + 14.0);
     let y = if top { 6.0 - off } else { h - bh - 6.0 + off };
-    let alpha = if ctx.cfg.theme.flat || ctx.st.toggles.gaming { 1.0 } else { c.opacity.clamp(0.2, 1.0) };
+    let alpha = if ctx.cfg.theme.flat || ctx.st.toggles.gaming {
+        1.0
+    } else {
+        c.opacity.clamp(0.2, 1.0)
+    };
     let bg = p.surface.alpha(alpha);
     let style = c.style.as_str();
 
@@ -142,7 +161,11 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
         .map(|z| {
             z.iter()
                 .map(|m| {
-                    let mw = if m == "island" || m == "clock" { iw } else { module_width(cv, ctx, m) };
+                    let mw = if m == "island" || m == "clock" {
+                        iw
+                    } else {
+                        module_width(cv, ctx, m)
+                    };
                     (m.clone(), mw)
                 })
                 .filter(|(_, mw)| *mw > 0.0)
@@ -150,7 +173,11 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
         })
         .collect();
     let zone_w = |z: &Vec<(String, f32)>| -> f32 {
-        if z.is_empty() { 0.0 } else { z.iter().map(|x| x.1).sum::<f32>() + (z.len() as f32 - 1.0) * 2.0 + PAD * 2.0 }
+        if z.is_empty() {
+            0.0
+        } else {
+            z.iter().map(|x| x.1).sum::<f32>() + (z.len() as f32 - 1.0) * 2.0 + PAD * 2.0
+        }
     };
 
     let mut pills: Vec<(f32, f32, f32, f32)> = Vec::new();
@@ -206,7 +233,11 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
     }
 
     // the island squeezes a little when something new lands in it
-    let squeeze = ui.island.pulse.map(|t| crate::anim::progress(t, now, 260)).unwrap_or(1.0);
+    let squeeze = ui
+        .island
+        .pulse
+        .map(|t| crate::anim::progress(t, now, 260))
+        .unwrap_or(1.0);
     if squeeze < 1.0 {
         anim = true;
     }
@@ -238,14 +269,31 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
                         Some(img) => cv.image_rrect(img, ix + 6.0, cy - 9.0, 18.0, 18.0, 3.0),
                         None => {
                             cv.circle(ix + 15.0, cy, 9.0, p.container);
-                            cv.text(ix + 15.0, cy, &t.letter, Face::Bold, 10.0, p.ink_container, Align::Center);
+                            cv.text(
+                                ix + 15.0,
+                                cy,
+                                &t.letter,
+                                Face::Bold,
+                                10.0,
+                                p.ink_container,
+                                Align::Center,
+                            );
                         }
                     }
                 }
             }
             "title" => {
                 hits.add(x, y, mw, bh, Act::None);
-                cv.text_max(x + 8.0, cy, &ctx.st.wm.title, Face::Medium, 13.0, p.dim, Align::Left, mw - 16.0);
+                cv.text_max(
+                    x + 8.0,
+                    cy,
+                    &ctx.st.wm.title,
+                    Face::Medium,
+                    13.0,
+                    p.dim,
+                    Align::Left,
+                    mw - 16.0,
+                );
             }
             "media" | "music" => {
                 let hov = hits.add(x, y + 4.0, mw, bh - 8.0, Act::PlayPause);
@@ -253,15 +301,46 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
                 if hov {
                     cv.rrect(x, y + 4.0, mw, bh - 8.0, (bh - 8.0) / 2.0, p.card_hi);
                 }
-                cv.icon(if ctx.st.media.playing { "pause" } else { "play_arrow" }, x + 16.0, cy, 18.0, p.fg);
-                cv.text_max(x + 30.0, cy, &ctx.st.media.title, Face::Medium, 13.0, p.fg, Align::Left, mw - 38.0);
+                cv.icon(
+                    if ctx.st.media.playing {
+                        "pause"
+                    } else {
+                        "play_arrow"
+                    },
+                    x + 16.0,
+                    cy,
+                    18.0,
+                    p.fg,
+                );
+                cv.text_max(
+                    x + 30.0,
+                    cy,
+                    &ctx.st.media.title,
+                    Face::Medium,
+                    13.0,
+                    p.fg,
+                    Align::Left,
+                    mw - 38.0,
+                );
             }
             "battery" => {
                 hits.add(x, y + 4.0, mw, bh - 8.0, Act::ToggleControl);
                 let b = &ctx.st.batt;
-                let col = if b.pct < 15.0 && !b.charging { p.warn } else { p.fg };
+                let col = if b.pct < 15.0 && !b.charging {
+                    p.warn
+                } else {
+                    p.fg
+                };
                 cv.icon(b.icon(), x + ICON_W / 2.0, cy, 19.0, col);
-                cv.text(x + ICON_W - 2.0, cy, &format!("{}%", b.pct.round()), Face::Semi, 12.0, col, Align::Left);
+                cv.text(
+                    x + ICON_W - 2.0,
+                    cy,
+                    &format!("{}%", b.pct.round()),
+                    Face::Semi,
+                    12.0,
+                    col,
+                    Align::Left,
+                );
             }
             other => {
                 let (icon, act, right, scroll) = icon_module(ctx, other);
@@ -277,7 +356,9 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
                 }
                 let col = match other {
                     "power" => p.fg,
-                    "notifications" if !ctx.st.notifs.list.is_empty() && !ctx.st.toggles.dnd => p.primary,
+                    "notifications" if !ctx.st.notifs.list.is_empty() && !ctx.st.toggles.dnd => {
+                        p.primary
+                    }
                     _ => p.fg,
                 };
                 if other == "launcher" {
@@ -285,7 +366,8 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
                 } else {
                     cv.icon(icon, x + mw / 2.0, cy, 19.0, col);
                 }
-                if other == "notifications" && !ctx.st.notifs.list.is_empty() && !ctx.st.toggles.dnd {
+                if other == "notifications" && !ctx.st.notifs.list.is_empty() && !ctx.st.toggles.dnd
+                {
                     cv.circle(x + mw / 2.0 + 7.0, cy - 7.0, 3.5, p.primary);
                 }
             }
@@ -296,17 +378,33 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
         anim |= ui.bar_rev.animating(now);
         if shown < 0.05 && !ui.bar_rev.open {
             let strip = (0.0, if top { 0.0 } else { h - 3.0 }, w, 3.0);
-            return Out { anim, input: Some(vec![strip]), done: false, damage: None };
+            return Out {
+                anim,
+                input: Some(vec![strip]),
+                done: false,
+                damage: None,
+            };
         }
     }
     // only the pills change (with their shadow); last frame's pills too, in case one got narrower
     let pad = 14.0;
-    let mut damage: Vec<(f32, f32, f32, f32)> = pills.iter().map(|&(x, y, w, h)| (x - pad, y - pad, w + 2.0 * pad, h + 2.0 * pad)).collect();
+    let mut damage: Vec<(f32, f32, f32, f32)> = pills
+        .iter()
+        .map(|&(x, y, w, h)| (x - pad, y - pad, w + 2.0 * pad, h + 2.0 * pad))
+        .collect();
     damage.extend(ui.island.last_pills.iter().copied());
-    ui.island.last_pills = pills.iter().map(|&(x, y, w, h)| (x - pad, y - pad, w + 2.0 * pad, h + 2.0 * pad)).collect();
+    ui.island.last_pills = pills
+        .iter()
+        .map(|&(x, y, w, h)| (x - pad, y - pad, w + 2.0 * pad, h + 2.0 * pad))
+        .collect();
     Out {
         anim,
-        input: Some(pills.iter().map(|&(x, y, w, h)| (x, y - 2.0, w, h + 4.0)).collect()),
+        input: Some(
+            pills
+                .iter()
+                .map(|&(x, y, w, h)| (x, y - 2.0, w, h + 4.0))
+                .collect(),
+        ),
         done: false,
         damage: Some(damage),
     }
@@ -317,7 +415,11 @@ fn icon_module(ctx: &Ctx, m: &str) -> (&'static str, Act, Act, Act) {
     match m {
         "power" => ("power_settings_new", Act::TogglePower, Act::None, Act::None),
         "network" => (
-            if st.net.ok || st.net.kind != NetKind::None { st.net.icon() } else { "wifi_off" },
+            if st.net.ok || st.net.kind != NetKind::None {
+                st.net.icon()
+            } else {
+                "wifi_off"
+            },
             Act::ToggleControl,
             Act::Wifi,
             Act::None,
@@ -382,7 +484,12 @@ fn workspaces(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, x: f32, cy: f32, mw: 
     let mut xx = x + 8.0;
     for i in 0..n {
         let id = match st.wm.kind {
-            WmKind::Drift => st.wm.workspaces.get(i).map(|w| w.id).unwrap_or(i as i32 + 1),
+            WmKind::Drift => st
+                .wm
+                .workspaces
+                .get(i)
+                .map(|w| w.id)
+                .unwrap_or(i as i32 + 1),
             _ => i as i32 + 1,
         };
         let occupied = st.wm.workspaces.iter().any(|w| w.id == id && w.windows > 0);
@@ -393,7 +500,15 @@ fn workspaces(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, x: f32, cy: f32, mw: 
         if active {
             cv.rrect(xx + 1.0, cy - 7.0, slot - 2.0, 14.0, 7.0, p.primary);
             if ctx.cfg.bar.ws_style == "numbers" {
-                cv.text(xx + slot / 2.0, cy, &id.to_string(), Face::Bold, 10.0, p.ink_primary, Align::Center);
+                cv.text(
+                    xx + slot / 2.0,
+                    cy,
+                    &id.to_string(),
+                    Face::Bold,
+                    10.0,
+                    p.ink_primary,
+                    Align::Center,
+                );
             }
         } else {
             let r = if occupied { 4.0 } else { 3.0 };
@@ -408,12 +523,26 @@ fn workspaces(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, x: f32, cy: f32, mw: 
 }
 
 #[allow(clippy::too_many_arguments)]
-fn island(cv: &mut Canvas, ctx: &Ctx, ui: &Ui, hits: &mut Hits, x: f32, y: f32, w: f32, h: f32, squeeze: f32) -> bool {
+fn island(
+    cv: &mut Canvas,
+    ctx: &Ctx,
+    ui: &Ui,
+    hits: &mut Hits,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    squeeze: f32,
+) -> bool {
     let p = ctx.th.pal;
     let now = ctx.now;
     let st = ctx.st;
     let cy = y + h / 2.0;
-    let mode = if ctx.cfg.island.dynamic { ui.island.mode } else { IslandMode::Idle };
+    let mode = if ctx.cfg.island.dynamic {
+        ui.island.mode
+    } else {
+        IslandMode::Idle
+    };
     let k = ui.island.face.get(now);
     let mut anim = false;
     // the island as its own darker band only when it has grown into something
@@ -431,13 +560,30 @@ fn island(cv: &mut Canvas, ctx: &Ctx, ui: &Ui, hits: &mut Hits, x: f32, y: f32, 
             cv.alpha *= k;
             let red = Rgba::hex("#ff5f57").unwrap();
             // it breathes once a second, with the clock (no extra frames while you record)
-            let secs = st.rec.since.map(|s| now.saturating_duration_since(s).as_secs()).unwrap_or(0);
+            let secs = st
+                .rec
+                .since
+                .map(|s| now.saturating_duration_since(s).as_secs())
+                .unwrap_or(0);
             if secs % 2 == 0 {
                 cv.circle(x + 20.0, cy, 9.0, red.alpha(0.25));
             }
             cv.circle(x + 20.0, cy, 5.0, red);
-            let txt = format!("{:02}:{:02}:{:02}", secs / 3600, (secs / 60) % 60, secs % 60);
-            cv.text(x + 36.0, cy, &txt, Face::Semi, 13.0, p.ink_container, Align::Left);
+            let txt = format!(
+                "{:02}:{:02}:{:02}",
+                secs / 3600,
+                (secs / 60) % 60,
+                secs % 60
+            );
+            cv.text(
+                x + 36.0,
+                cy,
+                &txt,
+                Face::Semi,
+                13.0,
+                p.ink_container,
+                Align::Left,
+            );
             let bx = x + w - 20.0;
             let hov = hits.add(bx - 16.0, cy - 14.0, 32.0, 28.0, Act::RecStop);
             cv.circle(bx, cy, if hov { 13.0 } else { 12.0 }, red);
@@ -468,7 +614,15 @@ fn island(cv: &mut Canvas, ctx: &Ctx, ui: &Ui, hits: &mut Hits, x: f32, y: f32, 
             if ctx.cfg.island.weather && st.weather.ok {
                 cv.icon(st.weather.icon, xx + 7.0, cy, 15.0, p.dim);
                 xx += 16.0;
-                let ww = cv.text(xx, cy, &format!("{:.0}°", st.weather.temp), Face::Medium, 13.0, p.dim, Align::Left);
+                let ww = cv.text(
+                    xx,
+                    cy,
+                    &format!("{:.0}°", st.weather.temp),
+                    Face::Medium,
+                    13.0,
+                    p.dim,
+                    Align::Left,
+                );
                 xx += ww + 8.0;
             }
             if st.media.playing && ctx.cfg.island.wave {
@@ -526,7 +680,15 @@ fn island(cv: &mut Canvas, ctx: &Ctx, ui: &Ui, hits: &mut Hits, x: f32, y: f32, 
                 cv.line(x0, cy, fx, cy, 4.0, col);
             }
             cv.rrect(fx - 2.0, cy - 9.0, 4.0, 18.0, 2.0, col);
-            cv.text(x + w - 16.0, cy, &format!("{}", (v * 100.0).round() as i32), Face::Semi, 13.0, p.ink_container, Align::Right);
+            cv.text(
+                x + w - 16.0,
+                cy,
+                &format!("{}", (v * 100.0).round() as i32),
+                Face::Semi,
+                13.0,
+                p.ink_container,
+                Align::Right,
+            );
             cv.alpha = prev;
         }
         IslandMode::Ws => {
@@ -543,8 +705,25 @@ fn island(cv: &mut Canvas, ctx: &Ctx, ui: &Ui, hits: &mut Hits, x: f32, y: f32, 
                 .filter(|n| !n.is_empty() && n.parse::<i32>().is_err())
                 .unwrap_or_else(|| format!("Workspace {}", st.wm.active));
             cv.circle(x + 22.0, cy, 11.0, p.primary);
-            cv.text(x + 22.0, cy, &st.wm.active.to_string(), Face::Bold, 12.0, p.ink_primary, Align::Center);
-            cv.text_max(x + 42.0, cy, &name, Face::Semi, 13.0, p.ink_container, Align::Left, w - 54.0);
+            cv.text(
+                x + 22.0,
+                cy,
+                &st.wm.active.to_string(),
+                Face::Bold,
+                12.0,
+                p.ink_primary,
+                Align::Center,
+            );
+            cv.text_max(
+                x + 42.0,
+                cy,
+                &name,
+                Face::Semi,
+                13.0,
+                p.ink_container,
+                Align::Left,
+                w - 54.0,
+            );
             cv.alpha = prev;
         }
         IslandMode::Charger => {
@@ -565,14 +744,35 @@ fn island(cv: &mut Canvas, ctx: &Ctx, ui: &Ui, hits: &mut Hits, x: f32, y: f32, 
                     }
                 }
             }
-            cv.icon(if b.plugged { "bolt" } else { b.icon() }, x + 22.0, cy, 18.0, col);
+            cv.icon(
+                if b.plugged { "bolt" } else { b.icon() },
+                x + 22.0,
+                cy,
+                18.0,
+                col,
+            );
             let x0 = x + 42.0;
             let x1 = x + w - 52.0;
-            cv.rrect(x0, cy - 5.0, x1 - x0, 10.0, 5.0, p.ink_container.alpha(0.18));
+            cv.rrect(
+                x0,
+                cy - 5.0,
+                x1 - x0,
+                10.0,
+                5.0,
+                p.ink_container.alpha(0.18),
+            );
             let fill = (x1 - x0) * (b.pct / 100.0).clamp(0.0, 1.0) * crate::anim::decel(t);
             cv.rrect(x0, cy - 5.0, fill.max(10.0), 10.0, 5.0, col);
             let shown = (b.pct * crate::anim::decel(t)).round();
-            cv.text(x + w - 14.0, cy, &format!("{shown}%"), Face::Semi, 13.0, p.ink_container, Align::Right);
+            cv.text(
+                x + w - 14.0,
+                cy,
+                &format!("{shown}%"),
+                Face::Semi,
+                13.0,
+                p.ink_container,
+                Align::Right,
+            );
             cv.alpha = prev;
         }
     }

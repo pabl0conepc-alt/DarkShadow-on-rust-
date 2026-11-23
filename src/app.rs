@@ -22,8 +22,8 @@ use smithay_client_toolkit::{
             globals::registry_queue_init,
             protocol::{wl_keyboard, wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
         },
-        protocols::wp::cursor_shape::v1::client::{
-            wp_cursor_shape_device_v1::{Shape as CursorShape, WpCursorShapeDeviceV1},
+        protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::{
+            Shape as CursorShape, WpCursorShapeDeviceV1,
         },
     },
     registry::{ProvidesRegistryState, RegistryState},
@@ -31,11 +31,16 @@ use smithay_client_toolkit::{
     seat::{
         Capability, SeatHandler, SeatState,
         keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers, RawModifiers},
-        pointer::{PointerEvent, PointerEventKind, PointerHandler, cursor_shape::CursorShapeManager},
+        pointer::{
+            PointerEvent, PointerEventKind, PointerHandler, cursor_shape::CursorShapeManager,
+        },
     },
     shell::{
         WaylandSurface,
-        wlr_layer::{Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
+        wlr_layer::{
+            Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler, LayerSurface,
+            LayerSurfaceConfigure,
+        },
     },
     shm::{Shm, ShmHandler, slot::SlotPool},
 };
@@ -140,10 +145,16 @@ pub fn make_theme(cfg: &Config, st: &State) -> Theme {
     let scheme = cfg.theme.scheme.as_str();
     let accent = if let Some(c) = crate::color::Rgba::hex(scheme) {
         c
-    } else if let Some((_, _, hex)) = crate::theme::SCHEMES.iter().find(|s| s.0 == scheme && !s.2.is_empty()) {
+    } else if let Some((_, _, hex)) = crate::theme::SCHEMES
+        .iter()
+        .find(|s| s.0 == scheme && !s.2.is_empty())
+    {
         crate::color::Rgba::hex(hex).unwrap()
     } else {
-        let a = st.wall.accent.unwrap_or(crate::color::Rgba::hex("#9ec9bd").unwrap());
+        let a = st
+            .wall
+            .accent
+            .unwrap_or(crate::color::Rgba::hex("#9ec9bd").unwrap());
         if scheme == "grey" {
             let l = a.luma().clamp(0.5, 0.75);
             crate::color::rgba(l, l, l, 1.0)
@@ -152,7 +163,13 @@ pub fn make_theme(cfg: &Config, st: &State) -> Theme {
         }
     };
     let gaming = cfg.performance.gaming || st.toggles.gaming;
-    Theme::new(accent, cfg.theme.panel_alpha, style, cfg.theme.blur && !gaming, cfg.theme.flat || gaming)
+    Theme::new(
+        accent,
+        cfg.theme.panel_alpha,
+        style,
+        cfg.theme.blur && !gaming,
+        cfg.theme.flat || gaming,
+    )
 }
 
 impl App {
@@ -176,7 +193,13 @@ impl App {
             return;
         }
         let wl = self.compositor.create_surface(&self.qh);
-        let layer = self.layer_shell.create_layer_surface(&self.qh, wl, sp.layer, Some(sp.ns), sp.output.as_ref());
+        let layer = self.layer_shell.create_layer_surface(
+            &self.qh,
+            wl,
+            sp.layer,
+            Some(sp.ns),
+            sp.output.as_ref(),
+        );
         layer.set_anchor(sp.anchor);
         layer.set_size(sp.size.0, sp.size.1);
         layer.set_exclusive_zone(sp.exclusive);
@@ -297,14 +320,23 @@ impl App {
             }
         }
         // panels that finished closing
-        let done: Vec<Kind> = self.surfs.iter().filter(|s| s.closing && !s.anim).map(|s| s.kind).collect();
+        let done: Vec<Kind> = self
+            .surfs
+            .iter()
+            .filter(|s| s.closing && !s.anim)
+            .map(|s| s.kind)
+            .collect();
         for k in done {
             self.destroy(k);
         }
     }
 
     fn screen_size(&self) -> (f32, f32) {
-        if let Some(o) = self.svc.main_output.as_ref().and_then(|o| self.outputs.info(o))
+        if let Some(o) = self
+            .svc
+            .main_output
+            .as_ref()
+            .and_then(|o| self.outputs.info(o))
             && let Some((w, h)) = o.logical_size
         {
             return (w as f32, h as f32);
@@ -317,7 +349,18 @@ impl App {
         let (sw, sh) = self.screen_size();
         let abgr = self.abgr;
         let qh = self.qh.clone();
-        let App { surfs, gfx, cfg, st, ui, theme, shm, compositor, svc, .. } = self;
+        let App {
+            surfs,
+            gfx,
+            cfg,
+            st,
+            ui,
+            theme,
+            shm,
+            compositor,
+            svc,
+            ..
+        } = self;
         let s = &mut surfs[i];
         // frame-rate cap for decorative motion
         if s.anim && s.fps > 0 {
@@ -327,14 +370,17 @@ impl App {
                 if !s.timer_armed {
                     s.timer_armed = true;
                     let kind = s.kind;
-                    let _ = self.lh.insert_source(Timer::from_duration(min - el), move |_, _, app: &mut App| {
-                        if let Some(s) = app.surf_mut(kind) {
-                            s.timer_armed = false;
-                            s.dirty = true;
-                        }
-                        app.flush();
-                        TimeoutAction::Drop
-                    });
+                    let _ = self.lh.insert_source(
+                        Timer::from_duration(min - el),
+                        move |_, _, app: &mut App| {
+                            if let Some(s) = app.surf_mut(kind) {
+                                s.timer_armed = false;
+                                s.dirty = true;
+                            }
+                            app.flush();
+                            TimeoutAction::Drop
+                        },
+                    );
                 }
                 return;
             }
@@ -350,15 +396,34 @@ impl App {
             }
         }
         let pool = s.pool.as_mut().unwrap();
-        let fmt = if abgr { wl_shm::Format::Abgr8888 } else { wl_shm::Format::Argb8888 };
-        let Ok((buffer, canvas)) = pool.create_buffer(bw, bh, stride, fmt) else { return };
-        let Some(pm) = PixmapMut::from_bytes(canvas, bw as u32, bh as u32) else { return };
+        let fmt = if abgr {
+            wl_shm::Format::Abgr8888
+        } else {
+            wl_shm::Format::Argb8888
+        };
+        let Ok((buffer, canvas)) = pool.create_buffer(bw, bh, stride, fmt) else {
+            return;
+        };
+        let Some(pm) = PixmapMut::from_bytes(canvas, bw as u32, bh as u32) else {
+            return;
+        };
         gfx.rebuilt = false;
         let first = s.draws == 0;
         let mut cv = Canvas::new(pm, s.scale as f32, gfx);
         cv.clear();
         let mut hits = Hits::new(s.hover, s.pressed);
-        let ctx = Ctx { cfg, st, th: theme, now, sw, sh, seek: svc.seek_preview, edit: ui.edit, apps: &svc.apps.list, app_icons: &svc.app_icons };
+        let ctx = Ctx {
+            cfg,
+            st,
+            th: theme,
+            now,
+            sw,
+            sh,
+            seek: svc.seek_preview,
+            edit: ui.edit,
+            apps: &svc.apps.list,
+            app_icons: &svc.app_icons,
+        };
         let out: Out = match s.kind {
             Kind::Wall(id) => ui::wall::draw(&mut cv, &ctx, ui, id),
             Kind::Bar => ui::bar::draw(&mut cv, &ctx, ui, &mut hits),
@@ -437,7 +502,12 @@ impl App {
         s.draws += 1;
         s.draw_us += now.elapsed().as_micros() as u64;
         if std::env::var_os("DSHELL_DEBUG").is_some() {
-            eprintln!("draw {:?} anim={} t={:?}", s.kind, s.anim, self.started.elapsed());
+            eprintln!(
+                "draw {:?} anim={} t={:?}",
+                s.kind,
+                s.anim,
+                self.started.elapsed()
+            );
         }
         s.pool_len = s.pool.as_ref().map(|p| p.len()).unwrap_or(0);
         if !s.anim {
@@ -451,47 +521,60 @@ impl App {
             return;
         }
         self.trim_armed = true;
-        let _ = self.lh.insert_source(Timer::from_duration(after), |_, _, app: &mut App| {
-            app.trim_armed = false;
-            let now = Instant::now();
-            let mut again = false;
-            for s in &mut app.surfs {
-                if s.pool.is_none() || s.anim || s.dirty {
-                    continue;
+        let _ = self
+            .lh
+            .insert_source(Timer::from_duration(after), |_, _, app: &mut App| {
+                app.trim_armed = false;
+                let now = Instant::now();
+                let mut again = false;
+                for s in &mut app.surfs {
+                    if s.pool.is_none() || s.anim || s.dirty {
+                        continue;
+                    }
+                    if now.saturating_duration_since(s.last_draw) < Duration::from_secs(2) {
+                        again = true;
+                        continue;
+                    }
+                    // released by the compositor? then the memory can go
+                    let released = match (&s.last_buf, s.pool.as_mut()) {
+                        (Some(b), Some(p)) => b.canvas(p).is_some(),
+                        _ => true,
+                    };
+                    if released {
+                        s.last_buf = None;
+                        s.pool = None;
+                    } else {
+                        again = true;
+                    }
                 }
-                if now.saturating_duration_since(s.last_draw) < Duration::from_secs(2) {
-                    again = true;
-                    continue;
+                app.gfx.trim_layers();
+                // no panel open: the glyph and icon caches go too (they refill in microseconds)
+                if !app.surfs.iter().any(|s| {
+                    matches!(
+                        s.kind,
+                        Kind::Launcher
+                            | Kind::Control
+                            | Kind::Card
+                            | Kind::Power
+                            | Kind::Picker
+                            | Kind::Settings
+                            | Kind::Menu
+                    )
+                }) {
+                    app.gfx.trim();
                 }
-                // released by the compositor? then the memory can go
-                let released = match (&s.last_buf, s.pool.as_mut()) {
-                    (Some(b), Some(p)) => b.canvas(p).is_some(),
-                    _ => true,
-                };
-                if released {
-                    s.last_buf = None;
-                    s.pool = None;
-                } else {
-                    again = true;
+                if app.cfg.performance.trim_memory {
+                    // SAFETY: glibc call with no preconditions; returns freed heap pages to the system.
+                    #[cfg(target_env = "gnu")]
+                    unsafe {
+                        libc::malloc_trim(0);
+                    }
                 }
-            }
-            app.gfx.trim_layers();
-            // no panel open: the glyph and icon caches go too (they refill in microseconds)
-            if !app.surfs.iter().any(|s| matches!(s.kind, Kind::Launcher | Kind::Control | Kind::Card | Kind::Power | Kind::Picker | Kind::Settings | Kind::Menu)) {
-                app.gfx.trim();
-            }
-            if app.cfg.performance.trim_memory {
-                // SAFETY: glibc call with no preconditions; returns freed heap pages to the system.
-                #[cfg(target_env = "gnu")]
-                unsafe {
-                    libc::malloc_trim(0);
+                if again {
+                    app.arm_trim(Duration::from_secs(3));
                 }
-            }
-            if again {
-                app.arm_trim(Duration::from_secs(3));
-            }
-            TimeoutAction::Drop
-        });
+                TimeoutAction::Drop
+            });
     }
 
     // ------------------------------------------------------------------ input
@@ -502,7 +585,9 @@ impl App {
 
     /// Testing without a mouse: a click (or a wheel step) at surface coordinates of a surface.
     pub fn debug_click(&mut self, kind: Kind, x: f32, y: f32, wheel: f32) -> String {
-        let Some(i) = self.surfs.iter().position(|s| s.kind == kind) else { return "no such surface".into() };
+        let Some(i) = self.surfs.iter().position(|s| s.kind == kind) else {
+            return "no such surface".into();
+        };
         let Some(h) = self.hit_at(i, x, y).cloned() else {
             if wheel != 0.0 {
                 ui::scroll_surface(self, kind, wheel);
@@ -531,8 +616,12 @@ impl App {
 
     /// Testing without a mouse: the right button.
     pub fn debug_right(&mut self, kind: Kind, x: f32, y: f32) -> String {
-        let Some(i) = self.surfs.iter().position(|s| s.kind == kind) else { return "no such surface".into() };
-        let Some(h) = self.hit_at(i, x, y).cloned() else { return "nothing there".into() };
+        let Some(i) = self.surfs.iter().position(|s| s.kind == kind) else {
+            return "no such surface".into();
+        };
+        let Some(h) = self.hit_at(i, x, y).cloned() else {
+            return "nothing there".into();
+        };
         self.ui.last_press_x = x;
         let r = format!("{:?}", h.right);
         ui::act(self, h.right.clone());
@@ -550,13 +639,17 @@ impl App {
             s.hover = id;
             s.dirty = true;
             let kind = s.kind;
-            let act = id.and_then(|id| s.hits.iter().find(|h| h.id == id)).map(|h| h.act.clone());
+            let act = id
+                .and_then(|id| s.hits.iter().find(|h| h.id == id))
+                .map(|h| h.act.clone());
             ui::hover(self, kind, act);
         }
     }
 
     fn pointer_event(&mut self, ev: &PointerEvent) {
-        let Some(i) = self.surf_index(&ev.surface) else { return };
+        let Some(i) = self.surf_index(&ev.surface) else {
+            return;
+        };
         let (x, y) = (ev.position.0 as f32, ev.position.1 as f32);
         let kind = self.surfs[i].kind;
         match &ev.kind {
@@ -673,7 +766,13 @@ fn swizzle(buf: &mut [u8]) {
 // ---------------------------------------------------------------------- handlers
 
 impl CompositorHandler for App {
-    fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, surface: &wl_surface::WlSurface, f: i32) {
+    fn scale_factor_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        surface: &wl_surface::WlSurface,
+        f: i32,
+    ) {
         if std::env::var_os("DSHELL_DEBUG").is_some() {
             eprintln!("scale {f}");
         }
@@ -689,8 +788,21 @@ impl CompositorHandler for App {
         }
         self.flush();
     }
-    fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: wl_output::Transform) {}
-    fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>, surface: &wl_surface::WlSurface, _: u32) {
+    fn transform_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: wl_output::Transform,
+    ) {
+    }
+    fn frame(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        surface: &wl_surface::WlSurface,
+        _: u32,
+    ) {
         if let Some(i) = self.surf_index(surface) {
             let s = &mut self.surfs[i];
             s.waiting_frame = false;
@@ -700,8 +812,22 @@ impl CompositorHandler for App {
         }
         self.flush();
     }
-    fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
-    fn surface_leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
+    fn surface_enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
+    fn surface_leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
 }
 
 impl OutputHandler for App {
@@ -715,7 +841,12 @@ impl OutputHandler for App {
         crate::shell::outputs_changed(self);
     }
     fn output_destroyed(&mut self, _: &Connection, _: &QueueHandle<Self>, o: wl_output::WlOutput) {
-        let gone: Vec<Kind> = self.surfs.iter().filter(|s| s.output.as_ref() == Some(&o)).map(|s| s.kind).collect();
+        let gone: Vec<Kind> = self
+            .surfs
+            .iter()
+            .filter(|s| s.output.as_ref() == Some(&o))
+            .map(|s| s.kind)
+            .collect();
         for k in gone {
             self.destroy(k);
         }
@@ -733,7 +864,14 @@ impl LayerShellHandler for App {
             self.destroy(k);
         }
     }
-    fn configure(&mut self, _: &Connection, _: &QueueHandle<Self>, layer: &LayerSurface, c: LayerSurfaceConfigure, _: u32) {
+    fn configure(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        layer: &LayerSurface,
+        c: LayerSurfaceConfigure,
+        _: u32,
+    ) {
         if let Some(i) = self.surf_index(layer.wl_surface()) {
             let s = &mut self.surfs[i];
             let (w, h) = c.new_size;
@@ -764,7 +902,13 @@ impl SeatHandler for App {
         &mut self.seat
     }
     fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-    fn new_capability(&mut self, _: &Connection, qh: &QueueHandle<Self>, seat: wl_seat::WlSeat, cap: Capability) {
+    fn new_capability(
+        &mut self,
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+        seat: wl_seat::WlSeat,
+        cap: Capability,
+    ) {
         if cap == Capability::Keyboard && self.keyboard.is_none() {
             let lh = self.lh.clone();
             if let Ok(k) = self.seat.get_keyboard_with_repeat(
@@ -789,7 +933,13 @@ impl SeatHandler for App {
             }
         }
     }
-    fn remove_capability(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat, cap: Capability) {
+    fn remove_capability(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: wl_seat::WlSeat,
+        cap: Capability,
+    ) {
         if cap == Capability::Keyboard
             && let Some(k) = self.keyboard.take()
         {
@@ -820,7 +970,14 @@ impl KeyboardHandler for App {
             self.kb_focus = Some(self.surfs[i].kind);
         }
     }
-    fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, surface: &wl_surface::WlSurface, _: u32) {
+    fn leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        surface: &wl_surface::WlSurface,
+        _: u32,
+    ) {
         if let Some(i) = self.surf_index(surface) {
             let k = self.surfs[i].kind;
             if self.kb_focus == Some(k) {
@@ -830,15 +987,37 @@ impl KeyboardHandler for App {
             self.flush();
         }
     }
-    fn press_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, ev: KeyEvent) {
+    fn press_key(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        ev: KeyEvent,
+    ) {
         ui::key(self, &ev);
         self.flush();
     }
-    fn repeat_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, ev: KeyEvent) {
+    fn repeat_key(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        ev: KeyEvent,
+    ) {
         ui::key(self, &ev);
         self.flush();
     }
-    fn release_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, _: KeyEvent) {}
+    fn release_key(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        _: KeyEvent,
+    ) {
+    }
     fn update_modifiers(
         &mut self,
         _: &Connection,
@@ -854,7 +1033,13 @@ impl KeyboardHandler for App {
 }
 
 impl PointerHandler for App {
-    fn pointer_frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_pointer::WlPointer, events: &[PointerEvent]) {
+    fn pointer_frame(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_pointer::WlPointer,
+        events: &[PointerEvent],
+    ) {
         for e in events {
             self.pointer_event(e);
         }
@@ -894,10 +1079,13 @@ pub fn run() -> Result<(), String> {
     let qh = queue.handle();
     let mut ev: EventLoop<'static, App> = EventLoop::try_new().map_err(|e| e.to_string())?;
     let lh = ev.handle();
-    WaylandSource::new(conn.clone(), queue).insert(lh.clone()).map_err(|e| e.to_string())?;
+    WaylandSource::new(conn.clone(), queue)
+        .insert(lh.clone())
+        .map_err(|e| e.to_string())?;
 
     let compositor = CompositorState::bind(&globals, &qh).map_err(|_| "wl_compositor missing")?;
-    let layer_shell = LayerShell::bind(&globals, &qh).map_err(|_| "this compositor has no layer shell")?;
+    let layer_shell =
+        LayerShell::bind(&globals, &qh).map_err(|_| "this compositor has no layer shell")?;
     let shm = Shm::bind(&globals, &qh).map_err(|_| "wl_shm missing")?;
     let cursor_mgr = CursorShapeManager::bind(&globals, &qh).ok();
 
@@ -936,10 +1124,13 @@ pub fn run() -> Result<(), String> {
         trim_armed: false,
     };
     // the first roundtrips: outputs, seats and the shm formats
-    ev.dispatch(Some(Duration::from_millis(50)), &mut app).map_err(|e| e.to_string())?;
+    ev.dispatch(Some(Duration::from_millis(50)), &mut app)
+        .map_err(|e| e.to_string())?;
     let _ = conn.roundtrip();
-    ev.dispatch(Some(Duration::from_millis(20)), &mut app).map_err(|e| e.to_string())?;
-    app.abgr = app.shm.formats().contains(&wl_shm::Format::Abgr8888) && std::env::var_os("DSHELL_ARGB").is_none();
+    ev.dispatch(Some(Duration::from_millis(20)), &mut app)
+        .map_err(|e| e.to_string())?;
+    app.abgr = app.shm.formats().contains(&wl_shm::Format::Abgr8888)
+        && std::env::var_os("DSHELL_ARGB").is_none();
 
     crate::shell::start(&mut app);
     crate::ipc::serve(&mut app);
@@ -969,7 +1160,18 @@ pub fn run() -> Result<(), String> {
                     .surfs
                     .iter()
                     .map(|s| s.kind)
-                    .filter(|k| matches!(k, Kind::Launcher | Kind::Control | Kind::Card | Kind::Power | Kind::Picker | Kind::Settings | Kind::Menu))
+                    .filter(|k| {
+                        matches!(
+                            k,
+                            Kind::Launcher
+                                | Kind::Control
+                                | Kind::Card
+                                | Kind::Power
+                                | Kind::Picker
+                                | Kind::Settings
+                                | Kind::Menu
+                        )
+                    })
                     .collect();
                 for k in panels {
                     app.destroy(k);
@@ -983,4 +1185,3 @@ pub fn run() -> Result<(), String> {
     }
     Ok(())
 }
-

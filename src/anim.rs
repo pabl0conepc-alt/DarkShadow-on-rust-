@@ -8,13 +8,17 @@ pub fn bezier(x1: f32, y1: f32, x2: f32, y2: f32, t: f32) -> f32 {
     if t <= 0.0 || t >= 1.0 {
         return t;
     }
-    let bx = |s: f32| 3.0 * (1.0 - s) * (1.0 - s) * s * x1 + 3.0 * (1.0 - s) * s * s * x2 + s * s * s;
-    let by = |s: f32| 3.0 * (1.0 - s) * (1.0 - s) * s * y1 + 3.0 * (1.0 - s) * s * s * y2 + s * s * s;
+    let bx =
+        |s: f32| 3.0 * (1.0 - s) * (1.0 - s) * s * x1 + 3.0 * (1.0 - s) * s * s * x2 + s * s * s;
+    let by =
+        |s: f32| 3.0 * (1.0 - s) * (1.0 - s) * s * y1 + 3.0 * (1.0 - s) * s * s * y2 + s * s * s;
     // Newton then bisection for the s whose x is t
     let mut s = t;
     for _ in 0..6 {
         let x = bx(s) - t;
-        let d = 3.0 * (1.0 - s) * (1.0 - s) * x1 + 6.0 * (1.0 - s) * s * (x2 - x1) + 3.0 * s * s * (1.0 - x2);
+        let d = 3.0 * (1.0 - s) * (1.0 - s) * x1
+            + 6.0 * (1.0 - s) * s * (x2 - x1)
+            + 3.0 * s * s * (1.0 - x2);
         if d.abs() < 1e-5 {
             break;
         }
@@ -69,12 +73,22 @@ pub struct Reveal {
 
 impl Reveal {
     pub fn new(in_ms: u64, out_ms: u64) -> Self {
-        Reveal { open: false, since: Instant::now() - Duration::from_secs(10), from: 0.0, in_ms, out_ms }
+        Reveal {
+            open: false,
+            since: Instant::now() - Duration::from_secs(10),
+            from: 0.0,
+            in_ms,
+            out_ms,
+        }
     }
     /// raw 0..1 position (linear in time)
     pub fn raw(&self, now: Instant) -> f32 {
         if self.open {
-            let p = progress(self.since, now, (self.in_ms as f32 * (1.0 - self.from)) as u64);
+            let p = progress(
+                self.since,
+                now,
+                (self.in_ms as f32 * (1.0 - self.from)) as u64,
+            );
             self.from + (1.0 - self.from) * p
         } else {
             let p = progress(self.since, now, (self.out_ms as f32 * self.from) as u64);
@@ -84,7 +98,11 @@ impl Reveal {
     /// eased: decelerate in, accelerate out
     pub fn value(&self, now: Instant) -> f32 {
         let r = self.raw(now);
-        if self.open { decel(r) } else { 1.0 - accel(1.0 - r) }
+        if self.open {
+            decel(r)
+        } else {
+            1.0 - accel(1.0 - r)
+        }
     }
     pub fn set(&mut self, open: bool, now: Instant) {
         if open == self.open {
@@ -114,7 +132,12 @@ pub struct Glide {
 
 impl Glide {
     pub fn new(v: f32, ms: u64) -> Self {
-        Glide { from: v, to: v, since: Instant::now() - Duration::from_secs(10), ms }
+        Glide {
+            from: v,
+            to: v,
+            since: Instant::now() - Duration::from_secs(10),
+            ms,
+        }
     }
     pub fn get(&self, now: Instant) -> f32 {
         let t = std_ease(progress(self.since, now, self.ms));
@@ -150,10 +173,20 @@ pub struct Spring {
 
 impl Spring {
     pub fn new(x: f32) -> Self {
-        Spring { x, v: 0.0, target: x, last: Instant::now(), k: 380.0, d: 30.0 }
+        Spring {
+            x,
+            v: 0.0,
+            target: x,
+            last: Instant::now(),
+            k: 380.0,
+            d: 30.0,
+        }
     }
     pub fn step(&mut self, now: Instant) -> f32 {
-        let mut dt = now.saturating_duration_since(self.last).as_secs_f32().min(0.05);
+        let mut dt = now
+            .saturating_duration_since(self.last)
+            .as_secs_f32()
+            .min(0.05);
         self.last = now;
         while dt > 0.0 {
             let h = dt.min(1.0 / 240.0);

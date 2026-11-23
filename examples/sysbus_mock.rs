@@ -27,12 +27,15 @@ const APS: &[(&str, &str, u8, u32)] = &[
 
 fn main() {
     let c = LocalConnection::new_system().expect("DBUS_SYSTEM_BUS_ADDRESS");
-    c.request_name("org.freedesktop.NetworkManager", false, true, false).unwrap();
+    c.request_name("org.freedesktop.NetworkManager", false, true, false)
+        .unwrap();
     c.request_name("org.bluez", false, true, false).unwrap();
     let mut active = String::from("/");
     let mut bt_connected = vec!["/org/bluez/hci0/dev_AA".to_string()];
     loop {
-        c.channel().read_write(Some(Duration::from_millis(500))).ok();
+        c.channel()
+            .read_write(Some(Duration::from_millis(500)))
+            .ok();
         while let Some(m) = c.channel().pop_message() {
             if m.msg_type() != MessageType::MethodCall {
                 continue;
@@ -41,16 +44,33 @@ fn main() {
             let member = m.member().map(|x| x.to_string()).unwrap_or_default();
             let iface = m.interface().map(|x| x.to_string()).unwrap_or_default();
             let reply = match (path.as_str(), iface.as_str(), member.as_str()) {
-                ("/org/freedesktop/NetworkManager", "org.freedesktop.DBus.Properties", "GetAll") => {
+                (
+                    "/org/freedesktop/NetworkManager",
+                    "org.freedesktop.DBus.Properties",
+                    "GetAll",
+                ) => {
                     let mut p = PropMap::new();
                     p.insert("WirelessEnabled".into(), v(true));
                     let conn = active != "/";
-                    p.insert("PrimaryConnection".into(), v(op(if conn { "/active/1" } else { "/" })));
-                    p.insert("PrimaryConnectionType".into(), v(if conn { "802-11-wireless".to_string() } else { String::new() }));
+                    p.insert(
+                        "PrimaryConnection".into(),
+                        v(op(if conn { "/active/1" } else { "/" })),
+                    );
+                    p.insert(
+                        "PrimaryConnectionType".into(),
+                        v(if conn {
+                            "802-11-wireless".to_string()
+                        } else {
+                            String::new()
+                        }),
+                    );
                     m.method_return().append1(p)
                 }
-                ("/org/freedesktop/NetworkManager", _, "GetDevices") => m.method_return().append1(vec![op("/dev/1")]),
-                ("/org/freedesktop/NetworkManager", _, "ActivateConnection") | ("/org/freedesktop/NetworkManager", _, "AddAndActivateConnection") => {
+                ("/org/freedesktop/NetworkManager", _, "GetDevices") => {
+                    m.method_return().append1(vec![op("/dev/1")])
+                }
+                ("/org/freedesktop/NetworkManager", _, "ActivateConnection")
+                | ("/org/freedesktop/NetworkManager", _, "AddAndActivateConnection") => {
                     let mut it = m.iter_init();
                     if member == "AddAndActivateConnection" {
                         let _: HashMap<String, PropMap> = it.read().unwrap_or_default();
@@ -60,16 +80,36 @@ fn main() {
                     let _: Path = it.read().unwrap();
                     let ap: Path = it.read().unwrap();
                     active = ap.to_string();
-                    let sig = Message::new_signal("/org/freedesktop/NetworkManager", "org.freedesktop.DBus.Properties", "PropertiesChanged")
-                        .unwrap()
-                        .append3("org.freedesktop.NetworkManager", PropMap::new(), Vec::<String>::new());
+                    let sig = Message::new_signal(
+                        "/org/freedesktop/NetworkManager",
+                        "org.freedesktop.DBus.Properties",
+                        "PropertiesChanged",
+                    )
+                    .unwrap()
+                    .append3(
+                        "org.freedesktop.NetworkManager",
+                        PropMap::new(),
+                        Vec::<String>::new(),
+                    );
                     let _ = c.channel().send(sig);
-                    if member == "ActivateConnection" { m.method_return().append1(op("/active/1")) } else { m.method_return().append2(op("/c/2"), op("/active/1")) }
+                    if member == "ActivateConnection" {
+                        m.method_return().append1(op("/active/1"))
+                    } else {
+                        m.method_return().append2(op("/c/2"), op("/active/1"))
+                    }
                 }
                 ("/active/1", "org.freedesktop.DBus.Properties", "Get") => {
                     let (_, prop): (String, String) = m.read2().unwrap();
-                    let name = APS.iter().find(|a| a.0 == active).map(|a| a.1).unwrap_or("");
-                    if prop == "Id" { m.method_return().append1(v(name.to_string())) } else { m.method_return().append1(v(op(&active))) }
+                    let name = APS
+                        .iter()
+                        .find(|a| a.0 == active)
+                        .map(|a| a.1)
+                        .unwrap_or("");
+                    if prop == "Id" {
+                        m.method_return().append1(v(name.to_string()))
+                    } else {
+                        m.method_return().append1(v(op(&active)))
+                    }
                 }
                 ("/dev/1", "org.freedesktop.DBus.Properties", "Get") => {
                     let (_, prop): (String, String) = m.read2().unwrap();
@@ -78,7 +118,9 @@ fn main() {
                         _ => m.method_return().append1(v(op(&active))),
                     }
                 }
-                ("/dev/1", _, "GetAllAccessPoints") => m.method_return().append1(APS.iter().map(|a| op(a.0)).collect::<Vec<_>>()),
+                ("/dev/1", _, "GetAllAccessPoints") => m
+                    .method_return()
+                    .append1(APS.iter().map(|a| op(a.0)).collect::<Vec<_>>()),
                 ("/dev/1", _, "RequestScan") | ("/dev/1", _, "Disconnect") => {
                     if member == "Disconnect" {
                         active = "/".into();
@@ -99,7 +141,9 @@ fn main() {
                     let a = APS.iter().find(|a| a.0 == p).unwrap();
                     m.method_return().append1(v(a.2))
                 }
-                ("/org/freedesktop/NetworkManager/Settings", _, "ListConnections") => m.method_return().append1(vec![op("/c/1")]),
+                ("/org/freedesktop/NetworkManager/Settings", _, "ListConnections") => {
+                    m.method_return().append1(vec![op("/c/1")])
+                }
                 ("/c/1", _, "GetSettings") => {
                     let mut w = PropMap::new();
                     w.insert("ssid".into(), v(b"Home".to_vec()));
@@ -112,9 +156,17 @@ fn main() {
                     let mut ad = PropMap::new();
                     ad.insert("Powered".into(), v(true));
                     ad.insert("Discovering".into(), v(false));
-                    objs.insert(op("/org/bluez/hci0"), HashMap::from([("org.bluez.Adapter1".to_string(), ad)]));
+                    objs.insert(
+                        op("/org/bluez/hci0"),
+                        HashMap::from([("org.bluez.Adapter1".to_string(), ad)]),
+                    );
                     for (p, name, icon, paired) in [
-                        ("/org/bluez/hci0/dev_AA", "Pixel Buds", "audio-headset", true),
+                        (
+                            "/org/bluez/hci0/dev_AA",
+                            "Pixel Buds",
+                            "audio-headset",
+                            true,
+                        ),
                         ("/org/bluez/hci0/dev_BB", "MX Keys", "input-keyboard", true),
                         ("/org/bluez/hci0/dev_CC", "Galaxy S24", "phone", false),
                     ] {
@@ -136,21 +188,40 @@ fn main() {
                 }
                 (p, "org.bluez.Device1", "Connect") | (p, "org.bluez.Device1", "Pair") => {
                     bt_connected.push(p.to_string());
-                    let sig = Message::new_signal(p, "org.freedesktop.DBus.Properties", "PropertiesChanged")
-                        .unwrap()
-                        .append3("org.bluez.Device1", PropMap::new(), Vec::<String>::new());
+                    let sig = Message::new_signal(
+                        p,
+                        "org.freedesktop.DBus.Properties",
+                        "PropertiesChanged",
+                    )
+                    .unwrap()
+                    .append3(
+                        "org.bluez.Device1",
+                        PropMap::new(),
+                        Vec::<String>::new(),
+                    );
                     let _ = c.channel().send(sig);
                     m.method_return()
                 }
                 (p, "org.bluez.Device1", "Disconnect") => {
                     bt_connected.retain(|x| x != p);
-                    let sig = Message::new_signal(p, "org.freedesktop.DBus.Properties", "PropertiesChanged")
-                        .unwrap()
-                        .append3("org.bluez.Device1", PropMap::new(), Vec::<String>::new());
+                    let sig = Message::new_signal(
+                        p,
+                        "org.freedesktop.DBus.Properties",
+                        "PropertiesChanged",
+                    )
+                    .unwrap()
+                    .append3(
+                        "org.bluez.Device1",
+                        PropMap::new(),
+                        Vec::<String>::new(),
+                    );
                     let _ = c.channel().send(sig);
                     m.method_return()
                 }
-                _ => m.error(&"org.freedesktop.DBus.Error.UnknownMethod".into(), c"mock: unknown"),
+                _ => m.error(
+                    &"org.freedesktop.DBus.Error.UnknownMethod".into(),
+                    c"mock: unknown",
+                ),
             };
             let _ = c.channel().send(reply);
         }

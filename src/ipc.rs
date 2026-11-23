@@ -26,18 +26,20 @@ pub fn serve(app: &mut App) {
         return;
     };
     let _ = l.set_nonblocking(true);
-    let _ = app.lh.insert_source(Generic::new(l, Interest::READ, Mode::Level), |_, l, app| {
-        while let Ok((mut s, _)) = l.accept() {
-            let _ = s.set_nonblocking(false);
-            let _ = s.set_read_timeout(Some(Duration::from_millis(300)));
-            let mut line = String::new();
-            let _ = BufReader::new(&s).read_line(&mut line);
-            let reply = crate::actions::command(app, line.trim());
-            let _ = s.write_all(reply.as_bytes());
-            let _ = s.write_all(b"\n");
-        }
-        Ok(PostAction::Continue)
-    });
+    let _ = app
+        .lh
+        .insert_source(Generic::new(l, Interest::READ, Mode::Level), |_, l, app| {
+            while let Ok((mut s, _)) = l.accept() {
+                let _ = s.set_nonblocking(false);
+                let _ = s.set_read_timeout(Some(Duration::from_millis(300)));
+                let mut line = String::new();
+                let _ = BufReader::new(&s).read_line(&mut line);
+                let reply = crate::actions::command(app, line.trim());
+                let _ = s.write_all(reply.as_bytes());
+                let _ = s.write_all(b"\n");
+            }
+            Ok(PostAction::Continue)
+        });
 }
 
 /// Client side: send the command, print the answer. Exit code 1 when the shell is not running.

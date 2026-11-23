@@ -8,15 +8,16 @@ pub mod dock;
 pub mod launcher;
 pub mod menu;
 pub mod picker;
-pub mod settings;
 pub mod power;
+pub mod settings;
 pub mod wall;
 pub mod widgets;
 
 use std::time::Instant;
 
 pub use crate::actions::{
-    act, drag_end, drag_motion, focus_lost, hover, key, on_enter, press_empty, scroll, scroll_surface, slide, slide_end,
+    act, drag_end, drag_motion, focus_lost, hover, key, on_enter, press_empty, scroll,
+    scroll_surface, slide, slide_end,
 };
 
 use crate::anim::{Glide, Reveal, Spring};
@@ -38,8 +39,15 @@ pub enum WidgetId {
     Calendar,
 }
 
-pub const WIDGETS: [WidgetId; 7] =
-    [WidgetId::Clock, WidgetId::User, WidgetId::Trio, WidgetId::Focus, WidgetId::Player, WidgetId::Weather, WidgetId::Calendar];
+pub const WIDGETS: [WidgetId; 7] = [
+    WidgetId::Clock,
+    WidgetId::User,
+    WidgetId::Trio,
+    WidgetId::Focus,
+    WidgetId::Player,
+    WidgetId::Weather,
+    WidgetId::Calendar,
+];
 
 impl WidgetId {
     pub fn name(self) -> &'static str {
@@ -228,11 +236,28 @@ pub struct Hits {
 
 impl Hits {
     pub fn new(hover: Option<u32>, pressed: Option<u32>) -> Self {
-        Hits { list: Vec::new(), base: 0, hover, pressed, ox: 0.0, oy: 0.0 }
+        Hits {
+            list: Vec::new(),
+            base: 0,
+            hover,
+            pressed,
+            ox: 0.0,
+            oy: 0.0,
+        }
     }
     fn push(&mut self, x: f32, y: f32, w: f32, h: f32, act: Act, kind: HitKind) -> u32 {
         let id = self.base + self.list.len() as u32 + 1;
-        self.list.push(Hit { x: x + self.ox, y: y + self.oy, w, h, act, right: Act::None, scroll: Act::None, kind, id });
+        self.list.push(Hit {
+            x: x + self.ox,
+            y: y + self.oy,
+            w,
+            h,
+            act,
+            right: Act::None,
+            scroll: Act::None,
+            kind,
+            id,
+        });
         id
     }
     /// add a clickable area; returns whether the pointer is on it
@@ -256,7 +281,10 @@ impl Hits {
         }
     }
     pub fn is_pressed_last(&self) -> bool {
-        self.list.last().map(|h| Some(h.id) == self.pressed).unwrap_or(false)
+        self.list
+            .last()
+            .map(|h| Some(h.id) == self.pressed)
+            .unwrap_or(false)
     }
 }
 
@@ -389,7 +417,12 @@ impl FocusUi {
         }
     }
     pub fn total(&self) -> f64 {
-        (if self.on_break { self.break_minutes } else { self.minutes }) as f64 * 60.0
+        (if self.on_break {
+            self.break_minutes
+        } else {
+            self.minutes
+        }) as f64
+            * 60.0
     }
 }
 
@@ -443,16 +476,42 @@ impl Ui {
                 left_at: None,
                 notif: None,
             },
-            launcher: LauncherUi { query: String::new(), sel: 0, top: 0, results: Vec::new(), rev: Reveal::new(320, 160), clip_mode: false, clip: Vec::new() },
-            control: ControlUi { tab: 0, rev: Reveal::new(380, 200), scroll: 0.0, view: 0, pw_for: None, pw: String::new() },
+            launcher: LauncherUi {
+                query: String::new(),
+                sel: 0,
+                top: 0,
+                results: Vec::new(),
+                rev: Reveal::new(320, 160),
+                clip_mode: false,
+                clip: Vec::new(),
+            },
+            control: ControlUi {
+                tab: 0,
+                rev: Reveal::new(380, 200),
+                scroll: 0.0,
+                view: 0,
+                pw_for: None,
+                pw: String::new(),
+            },
             power: Reveal::new(300, 160),
             power_sel: 0,
-            menu: MenuUi { service: String::new(), path: String::new(), entries: Vec::new(), rev: Reveal::new(200, 140) },
+            menu: MenuUi {
+                service: String::new(),
+                path: String::new(),
+                entries: Vec::new(),
+                rev: Reveal::new(200, 140),
+            },
             last_press_x: 0.0,
             clock_shown: String::new(),
             clock_prev: String::new(),
             clock_since: now,
-            settings: SettingsUi { page: 0, scroll: 0.0, rev: Reveal::new(340, 180), pending: Vec::new(), write_armed: false },
+            settings: SettingsUi {
+                page: 0,
+                scroll: 0.0,
+                rev: Reveal::new(340, 180),
+                pending: Vec::new(),
+                write_armed: false,
+            },
             picker: PickerUi {
                 sel: 0,
                 list: Vec::new(),
@@ -460,7 +519,15 @@ impl Ui {
                 loading: Default::default(),
                 rev: Reveal::new(340, 180),
             },
-            focus: FocusUi { running: false, on_break: false, minutes: 25, break_minutes: 5, left: 25.0 * 60.0, end: None, done_sessions: 0 },
+            focus: FocusUi {
+                running: false,
+                on_break: false,
+                minutes: 25,
+                break_minutes: 5,
+                left: 25.0 * 60.0,
+                end: None,
+                done_sessions: 0,
+            },
             bar_rev: Reveal::new(260, 200),
             edit: false,
             walls: Default::default(),
@@ -491,7 +558,11 @@ pub fn hkey<T: std::hash::Hash>(v: &T) -> u64 {
 
 pub fn fmt_time(secs: f64) -> String {
     let s = secs.max(0.0) as u64;
-    if s >= 3600 { format!("{}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60) } else { format!("{}:{:02}", s / 60, s % 60) }
+    if s >= 3600 {
+        format!("{}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60)
+    } else {
+        format!("{}:{:02}", s / 60, s % 60)
+    }
 }
 
 /// A round icon button; returns whether hovered.
@@ -521,27 +592,83 @@ pub fn icon_button(
 
 /// A pill-shaped slider with its icon inside (control center, island volume).
 #[allow(clippy::too_many_arguments)]
-pub fn pill_slider(cv: &mut Canvas, hits: &mut Hits, th: &Theme, x: f32, y: f32, w: f32, h: f32, v: f32, icon: &str, off: bool, act: Act) {
+pub fn pill_slider(
+    cv: &mut Canvas,
+    hits: &mut Hits,
+    th: &Theme,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    v: f32,
+    icon: &str,
+    off: bool,
+    act: Act,
+) {
     let p = &th.pal;
     let active = hits.slider(x, y, w, h, act);
     cv.rrect(x, y, w, h, h / 2.0, p.card);
     let fill = (h).max(w * v.clamp(0.0, 1.0));
-    cv.rrect(x, y, fill, h, h / 2.0, if off { p.card_hi } else { p.primary });
+    cv.rrect(
+        x,
+        y,
+        fill,
+        h,
+        h / 2.0,
+        if off { p.card_hi } else { p.primary },
+    );
     if active {
         cv.rrect(x, y, w, h, h / 2.0, crate::color::rgba(1.0, 1.0, 1.0, 0.04));
     }
-    cv.icon(icon, x + h / 2.0, y + h / 2.0, h * 0.46, if off { p.fg } else { p.ink_primary });
+    cv.icon(
+        icon,
+        x + h / 2.0,
+        y + h / 2.0,
+        h * 0.46,
+        if off { p.fg } else { p.ink_primary },
+    );
     let pct = format!("{}", (v * 100.0).round() as i32);
-    let ink = if fill > w - 36.0 && !off { p.ink_primary } else { p.dim };
-    cv.text(x + w - 16.0, y + h / 2.0, &pct, Face::Semi, 12.0, ink, Align::Right);
+    let ink = if fill > w - 36.0 && !off {
+        p.ink_primary
+    } else {
+        p.dim
+    };
+    cv.text(
+        x + w - 16.0,
+        y + h / 2.0,
+        &pct,
+        Face::Semi,
+        12.0,
+        ink,
+        Align::Right,
+    );
 }
 
-
 pub fn weekday(i: u32) -> &'static str {
-    ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][(i % 7) as usize]
+    [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ][(i % 7) as usize]
 }
 
 pub fn month(i: u32) -> &'static str {
-    ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-        [(i % 12) as usize]
+    [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ][(i % 12) as usize]
 }

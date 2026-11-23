@@ -18,7 +18,11 @@ fn pixels() -> Vec<(i32, i32, Vec<u8>)> {
         for x in 0..s {
             let inside = (x - 11) * (x - 11) + (y - 11) * (y - 11) < 100;
             // ARGB, network byte order
-            if inside { d.extend_from_slice(&[255, 255, 140, (x * 10) as u8]) } else { d.extend_from_slice(&[0, 0, 0, 0]) }
+            if inside {
+                d.extend_from_slice(&[255, 255, 140, (x * 10) as u8])
+            } else {
+                d.extend_from_slice(&[0, 0, 0, 0])
+            }
         }
     }
     vec![(s, s, d)]
@@ -26,17 +30,30 @@ fn pixels() -> Vec<(i32, i32, Vec<u8>)> {
 
 fn main() {
     let c = LocalConnection::new_session().unwrap();
-    let names = ["org.kde.StatusNotifierItem-mock-1", "org.kde.StatusNotifierItem-mock-2"];
+    let names = [
+        "org.kde.StatusNotifierItem-mock-1",
+        "org.kde.StatusNotifierItem-mock-2",
+    ];
     for n in names {
         c.request_name(n, false, true, false).unwrap();
     }
-    let w = c.with_proxy("org.kde.StatusNotifierWatcher", "/StatusNotifierWatcher", Duration::from_secs(2));
+    let w = c.with_proxy(
+        "org.kde.StatusNotifierWatcher",
+        "/StatusNotifierWatcher",
+        Duration::from_secs(2),
+    );
     for n in names {
-        let r: Result<(), _> = w.method_call("org.kde.StatusNotifierWatcher", "RegisterStatusNotifierItem", (n,));
+        let r: Result<(), _> = w.method_call(
+            "org.kde.StatusNotifierWatcher",
+            "RegisterStatusNotifierItem",
+            (n,),
+        );
         println!("register {n}: {:?}", r.is_ok());
     }
     loop {
-        c.channel().read_write(Some(Duration::from_millis(500))).ok();
+        c.channel()
+            .read_write(Some(Duration::from_millis(500)))
+            .ok();
         while let Some(m) = c.channel().pop_message() {
             if m.msg_type() != MessageType::MethodCall {
                 continue;
@@ -47,8 +64,22 @@ fn main() {
             let reply = match member.as_str() {
                 "GetAll" => {
                     let mut p = PropMap::new();
-                    p.insert("Id".into(), v(if first { "chat".to_string() } else { "calc".to_string() }));
-                    p.insert("Title".into(), v(if first { "Chat".to_string() } else { "Calc".to_string() }));
+                    p.insert(
+                        "Id".into(),
+                        v(if first {
+                            "chat".to_string()
+                        } else {
+                            "calc".to_string()
+                        }),
+                    );
+                    p.insert(
+                        "Title".into(),
+                        v(if first {
+                            "Chat".to_string()
+                        } else {
+                            "Calc".to_string()
+                        }),
+                    );
                     p.insert("Status".into(), v("Active".to_string()));
                     if first {
                         p.insert("Menu".into(), v(dbus::Path::new("/MenuBar").unwrap()));
@@ -67,22 +98,68 @@ fn main() {
                         for (k, val) in props {
                             p.insert(k.into(), Variant(val));
                         }
-                        (id, p, kids.into_iter().map(|k| Variant(Box::new(k) as Box<dyn RefArg>)).collect())
+                        (
+                            id,
+                            p,
+                            kids.into_iter()
+                                .map(|k| Variant(Box::new(k) as Box<dyn RefArg>))
+                                .collect(),
+                        )
                     }
-                    let lab = |s: &str| -> (&str, Box<dyn RefArg>) { ("label", Box::new(s.to_string())) };
-                    let root = node(0, vec![], vec![
-                        node(1, vec![lab("_Open Chat")], vec![]),
-                        node(2, vec![("type", Box::new("separator".to_string()))], vec![]),
-                        node(3, vec![lab("Do not disturb"), ("toggle-type", Box::new("checkmark".to_string())), ("toggle-state", Box::new(1i32))], vec![]),
-                        node(4, vec![lab("Status"), ("children-display", Box::new("submenu".to_string()))], vec![
-                            node(5, vec![lab("Online"), ("toggle-type", Box::new("radio".to_string())), ("toggle-state", Box::new(1i32))], vec![]),
-                            node(6, vec![lab("Away"), ("toggle-type", Box::new("radio".to_string())), ("toggle-state", Box::new(0i32))], vec![]),
-                        ]),
-                        node(7, vec![lab("Hidden"), ("visible", Box::new(false))], vec![]),
-                        node(8, vec![lab("Disabled thing"), ("enabled", Box::new(false))], vec![]),
-                        node(9, vec![("type", Box::new("separator".to_string()))], vec![]),
-                        node(10, vec![lab("_Quit")], vec![]),
-                    ]);
+                    let lab =
+                        |s: &str| -> (&str, Box<dyn RefArg>) { ("label", Box::new(s.to_string())) };
+                    let root = node(
+                        0,
+                        vec![],
+                        vec![
+                            node(1, vec![lab("_Open Chat")], vec![]),
+                            node(2, vec![("type", Box::new("separator".to_string()))], vec![]),
+                            node(
+                                3,
+                                vec![
+                                    lab("Do not disturb"),
+                                    ("toggle-type", Box::new("checkmark".to_string())),
+                                    ("toggle-state", Box::new(1i32)),
+                                ],
+                                vec![],
+                            ),
+                            node(
+                                4,
+                                vec![
+                                    lab("Status"),
+                                    ("children-display", Box::new("submenu".to_string())),
+                                ],
+                                vec![
+                                    node(
+                                        5,
+                                        vec![
+                                            lab("Online"),
+                                            ("toggle-type", Box::new("radio".to_string())),
+                                            ("toggle-state", Box::new(1i32)),
+                                        ],
+                                        vec![],
+                                    ),
+                                    node(
+                                        6,
+                                        vec![
+                                            lab("Away"),
+                                            ("toggle-type", Box::new("radio".to_string())),
+                                            ("toggle-state", Box::new(0i32)),
+                                        ],
+                                        vec![],
+                                    ),
+                                ],
+                            ),
+                            node(7, vec![lab("Hidden"), ("visible", Box::new(false))], vec![]),
+                            node(
+                                8,
+                                vec![lab("Disabled thing"), ("enabled", Box::new(false))],
+                                vec![],
+                            ),
+                            node(9, vec![("type", Box::new("separator".to_string()))], vec![]),
+                            node(10, vec![lab("_Quit")], vec![]),
+                        ],
+                    );
                     m.method_return().append2(7u32, root)
                 }
                 "Event" => {

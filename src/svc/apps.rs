@@ -32,12 +32,21 @@ pub struct Apps {
 pub fn data_dirs() -> Vec<PathBuf> {
     let mut v = Vec::new();
     let home = crate::config::home();
-    v.push(std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).unwrap_or_else(|| home.join(".local/share")));
+    v.push(
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| home.join(".local/share")),
+    );
     let sys = std::env::var("XDG_DATA_DIRS").unwrap_or_default();
     for d in sys.split(':').filter(|d| !d.is_empty()) {
         v.push(PathBuf::from(d));
     }
-    for d in ["/usr/local/share", "/usr/share", "/run/current-system/sw/share", "/var/lib/flatpak/exports/share"] {
+    for d in [
+        "/usr/local/share",
+        "/usr/share",
+        "/run/current-system/sw/share",
+        "/var/lib/flatpak/exports/share",
+    ] {
         v.push(PathBuf::from(d));
     }
     v.push(home.join(".nix-profile/share"));
@@ -70,20 +79,32 @@ fn parse(path: &Path, id: &str) -> Option<Entry> {
             let k = k.trim();
             let v = v.trim().to_string();
             // localized names win over the plain ones
-            if let Some(base) = k.strip_suffix(&format!("[{lang}]")).or_else(|| k.strip_suffix(&format!("[{short}]"))) {
+            if let Some(base) = k
+                .strip_suffix(&format!("[{lang}]"))
+                .or_else(|| k.strip_suffix(&format!("[{short}]")))
+            {
                 f.insert(format!("{base}#l"), v);
             } else if !k.contains('[') {
                 f.entry(k.to_string()).or_insert(v);
             }
         }
     }
-    let get = |k: &str| f.get(&format!("{k}#l")).or_else(|| f.get(k)).cloned().unwrap_or_default();
+    let get = |k: &str| {
+        f.get(&format!("{k}#l"))
+            .or_else(|| f.get(k))
+            .cloned()
+            .unwrap_or_default()
+    };
     if get("Type") != "Application" || get("NoDisplay") == "true" || get("Hidden") == "true" {
         return None;
     }
     let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
     let only = get("OnlyShowIn");
-    if !only.is_empty() && !only.split(';').any(|d| !d.is_empty() && desktop.split(':').any(|x| x == d)) {
+    if !only.is_empty()
+        && !only
+            .split(';')
+            .any(|d| !d.is_empty() && desktop.split(':').any(|x| x == d))
+    {
         return None;
     }
     let name = get("Name");
@@ -93,7 +114,14 @@ fn parse(path: &Path, id: &str) -> Option<Entry> {
     }
     let generic = get("GenericName");
     let keywords = get("Keywords");
-    let hay = format!("{} {} {} {}", name, generic, keywords.replace(';', " "), id.trim_end_matches(".desktop")).to_lowercase();
+    let hay = format!(
+        "{} {} {} {}",
+        name,
+        generic,
+        keywords.replace(';', " "),
+        id.trim_end_matches(".desktop")
+    )
+    .to_lowercase();
     Some(Entry {
         id: id.to_string(),
         name,
@@ -170,7 +198,14 @@ impl Apps {
             }
             i += 1;
         }
-        for t in ["Papirus-Dark", "Papirus", "Adwaita", "breeze-dark", "breeze", "hicolor"] {
+        for t in [
+            "Papirus-Dark",
+            "Papirus",
+            "Adwaita",
+            "breeze-dark",
+            "breeze",
+            "hicolor",
+        ] {
             push(t, &mut themes);
         }
         let mut dirs = Vec::new();
@@ -244,7 +279,9 @@ impl Apps {
 }
 
 fn scan(root: &Path, dir: &Path, map: &mut HashMap<String, Entry>) {
-    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return;
+    };
     for e in rd.flatten() {
         let p = e.path();
         if p.is_dir() {
@@ -254,7 +291,10 @@ fn scan(root: &Path, dir: &Path, map: &mut HashMap<String, Entry>) {
         if p.extension().and_then(|x| x.to_str()) != Some("desktop") {
             continue;
         }
-        let id = p.strip_prefix(root).map(|r| r.to_string_lossy().replace('/', "-")).unwrap_or_default();
+        let id = p
+            .strip_prefix(root)
+            .map(|r| r.to_string_lossy().replace('/', "-"))
+            .unwrap_or_default();
         if map.contains_key(&id) {
             continue; // earlier data dirs win (the user's own first)
         }
@@ -334,7 +374,11 @@ pub fn command(e: &Entry, terminal: &str) -> String {
         }
     }
     let cmd = out.trim().to_string();
-    if e.terminal { format!("{terminal} -e {cmd}") } else { cmd }
+    if e.terminal {
+        format!("{terminal} -e {cmd}")
+    } else {
+        cmd
+    }
 }
 
 #[cfg(test)]
@@ -368,7 +412,10 @@ mod tests {
     #[test]
     fn field_codes_are_removed() {
         assert_eq!(command(&e("Firefox", "firefox %u"), "kitty"), "firefox");
-        assert_eq!(command(&e("Files", "nautilus --new-window %U"), "kitty"), "nautilus --new-window");
+        assert_eq!(
+            command(&e("Files", "nautilus --new-window %U"), "kitty"),
+            "nautilus --new-window"
+        );
     }
 }
 
@@ -383,7 +430,23 @@ pub fn for_window<'a>(list: &'a [Entry], class: &str) -> Option<(usize, &'a Entr
         .enumerate()
         .find(|(_, e)| e.wmclass == c)
         .or_else(|| list.iter().enumerate().find(|(_, e)| stem(e) == c))
-        .or_else(|| list.iter().enumerate().find(|(_, e)| stem(e).rsplit('.').next() == Some(c.as_str())))
-        .or_else(|| list.iter().enumerate().find(|(_, e)| e.name.to_lowercase() == c))
-        .or_else(|| list.iter().enumerate().find(|(_, e)| e.exec.split_whitespace().next().map(|x| x.rsplit('/').next().unwrap_or(x).to_lowercase()) == Some(c.clone())))
+        .or_else(|| {
+            list.iter()
+                .enumerate()
+                .find(|(_, e)| stem(e).rsplit('.').next() == Some(c.as_str()))
+        })
+        .or_else(|| {
+            list.iter()
+                .enumerate()
+                .find(|(_, e)| e.name.to_lowercase() == c)
+        })
+        .or_else(|| {
+            list.iter().enumerate().find(|(_, e)| {
+                e.exec
+                    .split_whitespace()
+                    .next()
+                    .map(|x| x.rsplit('/').next().unwrap_or(x).to_lowercase())
+                    == Some(c.clone())
+            })
+        })
 }

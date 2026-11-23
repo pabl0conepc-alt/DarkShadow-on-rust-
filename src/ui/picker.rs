@@ -11,7 +11,12 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
     let now = ctx.now;
     let pk = &ui.picker;
     if pk.rev.gone(now) {
-        return Out { anim: false, input: Some(vec![]), done: true, damage: None };
+        return Out {
+            anim: false,
+            input: Some(vec![]),
+            done: true,
+            damage: None,
+        };
     }
     let p = ctx.th.pal;
     let k = pk.rev.value(now);
@@ -27,16 +32,68 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
     cv.rrect(x, y, w, h, 30.0, p.surface);
     cv.rrect_stroke(x, y, w, h, 30.0, 1.0, p.line);
     cv.icon("wallpaper", x + 34.0, y + 34.0, 22.0, p.primary);
-    cv.text(x + 56.0, y + 34.0, "Wallpapers", Face::Semi, 16.0, p.fg, Align::Left);
+    cv.text(
+        x + 56.0,
+        y + 34.0,
+        "Wallpapers",
+        Face::Semi,
+        16.0,
+        p.fg,
+        Align::Left,
+    );
     let dir = ctx.cfg.wallpaper.dir.clone();
-    cv.text_max(x + 160.0, y + 34.0, &dir, Face::Regular, 12.0, p.dim, Align::Left, w - 320.0);
-    icon_button(cv, hits, x + w - 76.0, y + 34.0, 18.0, "shuffle", p.fg, p.card, p.card_hi, Act::WallShuffle);
-    icon_button(cv, hits, x + w - 34.0, y + 34.0, 18.0, "close", p.fg, p.card, p.card_hi, Act::CloseAll);
+    cv.text_max(
+        x + 160.0,
+        y + 34.0,
+        &dir,
+        Face::Regular,
+        12.0,
+        p.dim,
+        Align::Left,
+        w - 320.0,
+    );
+    icon_button(
+        cv,
+        hits,
+        x + w - 76.0,
+        y + 34.0,
+        18.0,
+        "shuffle",
+        p.fg,
+        p.card,
+        p.card_hi,
+        Act::WallShuffle,
+    );
+    icon_button(
+        cv,
+        hits,
+        x + w - 34.0,
+        y + 34.0,
+        18.0,
+        "close",
+        p.fg,
+        p.card,
+        p.card_hi,
+        Act::CloseAll,
+    );
 
     let n = pk.list.len();
     if n == 0 {
-        cv.shape(Shape::Cookie(9), x + w / 2.0, y + h / 2.0 + 10.0, 36.0, 0.0, p.container);
-        cv.icon("image", x + w / 2.0, y + h / 2.0 + 10.0, 30.0, p.ink_container);
+        cv.shape(
+            Shape::Cookie(9),
+            x + w / 2.0,
+            y + h / 2.0 + 10.0,
+            36.0,
+            0.0,
+            p.container,
+        );
+        cv.icon(
+            "image",
+            x + w / 2.0,
+            y + h / 2.0 + 10.0,
+            30.0,
+            p.ink_container,
+        );
         cv.text(
             x + w / 2.0,
             y + h / 2.0 + 70.0,
@@ -47,11 +104,19 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
             Align::Center,
         );
         cv.alpha = 1.0;
-        return Out { anim: pk.rev.animating(now), input: None, done: false, damage: None };
+        return Out {
+            anim: pk.rev.animating(now),
+            input: None,
+            done: false,
+            damage: None,
+        };
     }
     let (tw, th, gap) = (172.0, 108.0, 12.0);
     let visible = ((w - 40.0 + gap) / (tw + gap)).floor().max(1.0) as usize;
-    let first = pk.sel.saturating_sub(visible / 2).min(n.saturating_sub(visible));
+    let first = pk
+        .sel
+        .saturating_sub(visible / 2)
+        .min(n.saturating_sub(visible));
     let row_w = visible.min(n) as f32 * (tw + gap) - gap;
     let x0 = x + (w - row_w) / 2.0;
     let ty = y + 84.0;
@@ -74,16 +139,41 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
         } else if hov {
             cv.rrect(bx, by, bw, bh, 18.0, rgba(1.0, 1.0, 1.0, 0.08));
         }
-        let name = pk.list[i].file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-        cv.text_max(tx + tw / 2.0, ty + th + 20.0, &name, Face::Medium, 12.0, if sel { p.fg } else { p.dim }, Align::Center, tw);
+        let name = pk.list[i]
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        cv.text_max(
+            tx + tw / 2.0,
+            ty + th + 20.0,
+            &name,
+            Face::Medium,
+            12.0,
+            if sel { p.fg } else { p.dim },
+            Align::Center,
+            tw,
+        );
         if ctx.st.wall.path == pk.list[i].to_string_lossy() {
             cv.circle(tx + tw - 18.0, ty + 18.0, 11.0, p.primary);
             cv.icon("check", tx + tw - 18.0, ty + 18.0, 15.0, p.ink_primary);
         }
     }
-    cv.text(x + w / 2.0, y + h - 22.0, "← → choose · Enter set · R random · Esc close", Face::Regular, 11.0, p.dim, Align::Center);
+    cv.text(
+        x + w / 2.0,
+        y + h - 22.0,
+        "← → choose · Enter set · R random · Esc close",
+        Face::Regular,
+        11.0,
+        p.dim,
+        Align::Center,
+    );
     cv.alpha = 1.0;
     // thumbnails to load (picked up by the app after this pass)
     ui.want_thumbs = want;
-    Out { anim: pk.rev.animating(now), input: None, done: false, damage: None }
+    Out {
+        anim: pk.rev.animating(now),
+        input: None,
+        done: false,
+        damage: None,
+    }
 }

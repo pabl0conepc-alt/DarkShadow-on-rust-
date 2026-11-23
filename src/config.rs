@@ -4,27 +4,44 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub fn home() -> PathBuf {
-    std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| "/tmp".into())
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "/tmp".into())
 }
 
 pub fn config_dir() -> PathBuf {
-    std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).unwrap_or_else(|| home().join(".config")).join("dshell")
+    std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".config"))
+        .join("dshell")
 }
 
 pub fn state_dir() -> PathBuf {
-    std::env::var_os("XDG_STATE_HOME").map(PathBuf::from).unwrap_or_else(|| home().join(".local/state")).join("dshell")
+    std::env::var_os("XDG_STATE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".local/state"))
+        .join("dshell")
 }
 
 pub fn cache_dir() -> PathBuf {
-    std::env::var_os("XDG_CACHE_HOME").map(PathBuf::from).unwrap_or_else(|| home().join(".cache")).join("dshell")
+    std::env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".cache"))
+        .join("dshell")
 }
 
 pub fn runtime_dir() -> PathBuf {
-    std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).unwrap_or_else(|| "/tmp".into())
+    std::env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "/tmp".into())
 }
 
 pub fn expand(p: &str) -> PathBuf {
-    if let Some(r) = p.strip_prefix("~/") { home().join(r) } else { PathBuf::from(p) }
+    if let Some(r) = p.strip_prefix("~/") {
+        home().join(r)
+    } else {
+        PathBuf::from(p)
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -137,7 +154,14 @@ impl Default for BarCfg {
             opacity: 0.72,
             left: vec!["power".into(), "launcher".into(), "workspaces".into()],
             center: vec!["island".into()],
-            right: vec!["tray".into(), "network".into(), "bluetooth".into(), "volume".into(), "battery".into(), "notifications".into()],
+            right: vec![
+                "tray".into(),
+                "network".into(),
+                "bluetooth".into(),
+                "volume".into(),
+                "battery".into(),
+                "notifications".into(),
+            ],
             workspaces: 5,
             ws_style: "dots".into(),
             seconds: false,
@@ -166,7 +190,16 @@ pub struct IslandCfg {
 
 impl Default for IslandCfg {
     fn default() -> Self {
-        IslandCfg { dynamic: true, media: true, volume: true, workspaces: true, notifications: true, charger: true, weather: true, wave: true }
+        IslandCfg {
+            dynamic: true,
+            media: true,
+            volume: true,
+            workspaces: true,
+            notifications: true,
+            charger: true,
+            weather: true,
+            wave: true,
+        }
     }
 }
 
@@ -183,7 +216,12 @@ pub struct WallCfg {
 
 impl Default for WallCfg {
     fn default() -> Self {
-        WallCfg { enabled: true, path: String::new(), dir: "~/Pictures/Wallpapers".into(), transition: "fade".into() }
+        WallCfg {
+            enabled: true,
+            path: String::new(),
+            dir: "~/Pictures/Wallpapers".into(),
+            transition: "fade".into(),
+        }
     }
 }
 
@@ -201,7 +239,14 @@ pub struct WidgetCfg {
 
 impl WidgetCfg {
     fn new(enabled: bool, anchor: &str, x: i32, y: i32, style: &str) -> Self {
-        WidgetCfg { enabled, anchor: anchor.into(), x, y, style: style.into(), scale: 1.0 }
+        WidgetCfg {
+            enabled,
+            anchor: anchor.into(),
+            x,
+            y,
+            style: style.into(),
+            scale: 1.0,
+        }
     }
 }
 
@@ -235,7 +280,7 @@ impl Default for WidgetsCfg {
             enabled: true,
             fps: 20,
             pause_covered: true,
-            clock: WidgetCfg::new(true, "tl", 64, 56, "expressive"),
+            clock: WidgetCfg::new(true, "tl", 64, 56, "tall"),
             user: WidgetCfg::new(true, "tl", 28, 414, ""),
             trio: WidgetCfg::new(true, "bl", 52, 104, ""),
             focus: WidgetCfg::new(true, "tr", 142, 198, ""),
@@ -262,7 +307,14 @@ pub struct VizCfg {
 
 impl Default for VizCfg {
     fn default() -> Self {
-        VizCfg { enabled: true, height: 90, bars: 64, style: "bars".into(), color: "accent".into(), fps: 30 }
+        VizCfg {
+            enabled: true,
+            height: 90,
+            bars: 64,
+            style: "bars".into(),
+            color: "accent".into(),
+            fps: 30,
+        }
     }
 }
 
@@ -278,7 +330,12 @@ pub struct LauncherCfg {
 
 impl Default for LauncherCfg {
     fn default() -> Self {
-        LauncherCfg { width: 560, rows: 7, position: "center".into(), terminal: "kitty".into() }
+        LauncherCfg {
+            width: 560,
+            rows: 7,
+            position: "center".into(),
+            terminal: "kitty".into(),
+        }
     }
 }
 
@@ -294,7 +351,12 @@ pub struct NotifCfg {
 
 impl Default for NotifCfg {
     fn default() -> Self {
-        NotifCfg { enabled: true, timeout: 6, dnd: false, history: 50 }
+        NotifCfg {
+            enabled: true,
+            timeout: 6,
+            dnd: false,
+            history: 50,
+        }
     }
 }
 
@@ -334,7 +396,12 @@ pub struct WeatherCfg {
 
 impl Default for WeatherCfg {
     fn default() -> Self {
-        WeatherCfg { enabled: true, location: String::new(), units: "c".into(), minutes: 30 }
+        WeatherCfg {
+            enabled: true,
+            location: String::new(),
+            units: "c".into(),
+            minutes: 30,
+        }
     }
 }
 
@@ -350,7 +417,12 @@ pub struct AppsCfg {
 
 impl Default for AppsCfg {
     fn default() -> Self {
-        AppsCfg { terminal: "kitty".into(), files: "nautilus".into(), browser: "firefox".into(), icon_theme: String::new() }
+        AppsCfg {
+            terminal: "kitty".into(),
+            files: "nautilus".into(),
+            browser: "firefox".into(),
+            icon_theme: String::new(),
+        }
     }
 }
 
@@ -365,7 +437,10 @@ pub struct PerfCfg {
 
 impl Default for PerfCfg {
     fn default() -> Self {
-        PerfCfg { trim_memory: true, gaming: false }
+        PerfCfg {
+            trim_memory: true,
+            gaming: false,
+        }
     }
 }
 
@@ -384,7 +459,12 @@ impl Default for DockCfg {
     fn default() -> Self {
         DockCfg {
             enabled: false,
-            pinned: vec!["firefox.desktop".into(), "org.gnome.Nautilus.desktop".into(), "kitty.desktop".into(), "foot.desktop".into()],
+            pinned: vec![
+                "firefox.desktop".into(),
+                "org.gnome.Nautilus.desktop".into(),
+                "kitty.desktop".into(),
+                "foot.desktop".into(),
+            ],
             size: 44,
             running: true,
         }

@@ -72,7 +72,7 @@ enabled = true
 anchor = "tl"
 x = 64
 y = 56
-style = "expressive"         # expressive (side by side) | stacked | tall
+style = "tall"               # tall (narrow, one over the other) | expressive (heavy, side by side) | stacked
 
 [widgets.user]
 enabled = true

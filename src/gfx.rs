@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::f32::consts::{PI, TAU};
 
 use tiny_skia::{
-    FillRule, LineCap, LinearGradient, Mask, Paint, Path, PathBuilder, Pattern, Pixmap, PixmapMut, Point,
-    SpreadMode, Stroke, Transform,
+    FillRule, LineCap, LinearGradient, Mask, Paint, Path, PathBuilder, Pattern, Pixmap, PixmapMut,
+    Point, SpreadMode, Stroke, Transform,
 };
 
 use crate::color::Rgba;
@@ -19,7 +19,9 @@ pub struct IconCache {
 
 impl IconCache {
     fn new() -> Self {
-        IconCache { masks: HashMap::new() }
+        IconCache {
+            masks: HashMap::new(),
+        }
     }
 
     fn find(name: &str) -> Option<usize> {
@@ -47,7 +49,9 @@ fn kurbo_to_skia(bez: &kurbo::BezPath) -> Option<Path> {
             MoveTo(p) => pb.move_to(p.x as f32, p.y as f32),
             LineTo(p) => pb.line_to(p.x as f32, p.y as f32),
             QuadTo(a, p) => pb.quad_to(a.x as f32, a.y as f32, p.x as f32, p.y as f32),
-            CurveTo(a, b, p) => pb.cubic_to(a.x as f32, a.y as f32, b.x as f32, b.y as f32, p.x as f32, p.y as f32),
+            CurveTo(a, b, p) => pb.cubic_to(
+                a.x as f32, a.y as f32, b.x as f32, b.y as f32, p.x as f32, p.y as f32,
+            ),
             ClosePath => pb.close(),
         }
     }
@@ -60,8 +64,17 @@ fn raster_icon(d: &str, px: u16) -> Option<Box<[u8]>> {
     let mut m = Mask::new(px as u32, px as u32)?;
     // most symbols use viewBox "0 -960 960 960"; a few older ones are drawn on a 24-unit grid
     let small = kurbo::Shape::bounding_box(&bez).y0 >= -0.5;
-    let (s, dy) = if small { (px as f32 / 24.0, 0.0) } else { (px as f32 / 960.0, px as f32) };
-    m.fill_path(&path, FillRule::Winding, true, Transform::from_row(s, 0.0, 0.0, s, 0.0, dy));
+    let (s, dy) = if small {
+        (px as f32 / 24.0, 0.0)
+    } else {
+        (px as f32 / 960.0, px as f32)
+    };
+    m.fill_path(
+        &path,
+        FillRule::Winding,
+        true,
+        Transform::from_row(s, 0.0, 0.0, s, 0.0, dy),
+    );
     Some(m.data().to_vec().into_boxed_slice())
 }
 
@@ -86,12 +99,19 @@ pub struct Gfx {
 
 impl Gfx {
     pub fn new() -> Self {
-        Gfx { fonts: Fonts::new(), icons: IconCache::new(), layers: HashMap::new(), covers: HashMap::new(), rebuilt: false }
+        Gfx {
+            fonts: Fonts::new(),
+            icons: IconCache::new(),
+            layers: HashMap::new(),
+            covers: HashMap::new(),
+            rebuilt: false,
+        }
     }
     /// Drop still layers nobody used for a while.
     pub fn trim_layers(&mut self) {
         let now = std::time::Instant::now();
-        self.layers.retain(|_, l| now.duration_since(l.used) < std::time::Duration::from_secs(2));
+        self.layers
+            .retain(|_, l| now.duration_since(l.used) < std::time::Duration::from_secs(2));
         if self.covers.len() > 4 {
             self.covers.clear();
         }
@@ -267,19 +287,34 @@ fn paint(c: Rgba) -> Paint<'static> {
 
 impl<'a> Canvas<'a> {
     pub fn new(pm: PixmapMut<'a>, s: f32, g: &'a mut Gfx) -> Canvas<'a> {
-        Canvas { pm, s, g, alpha: 1.0, ox: 0.0, oy: 0.0 }
+        Canvas {
+            pm,
+            s,
+            g,
+            alpha: 1.0,
+            ox: 0.0,
+            oy: 0.0,
+        }
     }
 
     /// Draw the still part of a surface through a cache: `f` only runs when `key` changed.
     /// The hit areas `f` adds are kept with the pixels and added again on every frame.
-    pub fn cached(&mut self, slot: u64, key: u64, hits: &mut crate::ui::Hits, f: impl FnOnce(&mut Canvas, &mut crate::ui::Hits)) {
+    pub fn cached(
+        &mut self,
+        slot: u64,
+        key: u64,
+        hits: &mut crate::ui::Hits,
+        f: impl FnOnce(&mut Canvas, &mut crate::ui::Hits),
+    ) {
         let (w, h) = (self.pm.width(), self.pm.height());
         let fresh = match self.g.layers.get(&slot) {
             Some(l) => l.key != key || l.pm.width() != w || l.pm.height() != h,
             None => true,
         };
         if fresh {
-            let Some(mut pm) = Pixmap::new(w, h) else { return };
+            let Some(mut pm) = Pixmap::new(w, h) else {
+                return;
+            };
             let mut lh = crate::ui::Hits::new(hits.hover, hits.pressed);
             lh.ox = hits.ox;
             lh.oy = hits.oy;
@@ -291,7 +326,15 @@ impl<'a> Canvas<'a> {
                 cv.oy = self.oy;
                 f(&mut cv, &mut lh);
             }
-            self.g.layers.insert(slot, Layer { key, pm, hits: lh.list, used: std::time::Instant::now() });
+            self.g.layers.insert(
+                slot,
+                Layer {
+                    key,
+                    pm,
+                    hits: lh.list,
+                    used: std::time::Instant::now(),
+                },
+            );
             self.g.rebuilt = true;
         }
         if let Some(l) = self.g.layers.get_mut(&slot) {
@@ -338,13 +381,21 @@ impl<'a> Canvas<'a> {
             return;
         }
         let t = self.tf();
-        let st = Stroke { width, line_cap: LineCap::Round, ..Default::default() };
+        let st = Stroke {
+            width,
+            line_cap: LineCap::Round,
+            ..Default::default()
+        };
         self.pm.stroke_path(p, &paint(c), &st, t, None);
     }
 
     fn target(&mut self) -> crate::raster::Target<'_> {
         let (w, h) = (self.pm.width() as i32, self.pm.height() as i32);
-        crate::raster::Target { data: self.pm.data_mut(), w, h }
+        crate::raster::Target {
+            data: self.pm.data_mut(),
+            w,
+            h,
+        }
     }
 
     fn dev(&self, x: f32, y: f32) -> (f32, f32) {
@@ -362,24 +413,50 @@ impl<'a> Canvas<'a> {
     }
 
     pub fn rrect_stroke(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, width: f32, c: Rgba) {
-        if let Some(p) = rrect_path(x + width / 2.0, y + width / 2.0, w - width, h - width, r - width / 2.0) {
+        if let Some(p) = rrect_path(
+            x + width / 2.0,
+            y + width / 2.0,
+            w - width,
+            h - width,
+            r - width / 2.0,
+        ) {
             self.stroke_path(&p, width, c);
         }
     }
 
     /// Vertical gradient inside a rounded rect (the glass shine).
-    pub fn rrect_vgrad(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, top: Rgba, bottom: Rgba, mid: f32) {
-        let Some(p) = rrect_path(x, y, w, h, r) else { return };
+    pub fn rrect_vgrad(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        r: f32,
+        top: Rgba,
+        bottom: Rgba,
+        mid: f32,
+    ) {
+        let Some(p) = rrect_path(x, y, w, h, r) else {
+            return;
+        };
         let stops = vec![
             tiny_skia::GradientStop::new(0.0, self.col(top).sk()),
             tiny_skia::GradientStop::new(mid.clamp(0.01, 1.0), self.col(bottom).sk()),
         ];
-        let Some(sh) =
-            LinearGradient::new(Point::from_xy(0.0, y), Point::from_xy(0.0, y + h), stops, SpreadMode::Pad, Transform::identity())
-        else {
+        let Some(sh) = LinearGradient::new(
+            Point::from_xy(0.0, y),
+            Point::from_xy(0.0, y + h),
+            stops,
+            SpreadMode::Pad,
+            Transform::identity(),
+        ) else {
             return;
         };
-        let p2 = Paint { shader: sh, anti_alias: true, ..Default::default() };
+        let p2 = Paint {
+            shader: sh,
+            anti_alias: true,
+            ..Default::default()
+        };
         let t = self.tf();
         self.pm.fill_path(&p, &p2, FillRule::Winding, t, None);
     }
@@ -400,22 +477,54 @@ impl<'a> Canvas<'a> {
         }
     }
 
-
     /// An arc from `start` sweeping `sweep` radians (clockwise, 0 = 3 o'clock).
     pub fn arc(&mut self, cx: f32, cy: f32, r: f32, start: f32, sweep: f32, width: f32, c: Rgba) {
         self.wavy_arc(cx, cy, r, 0.0, 0.0, 0.0, start, sweep, width, c);
     }
 
     /// A ring that wobbles `n` times around (`amp` px), drawn from `start` over `sweep`.
-    pub fn wavy_arc(&mut self, cx: f32, cy: f32, r: f32, amp: f32, n: f32, phase: f32, start: f32, sweep: f32, width: f32, c: Rgba) {
+    pub fn wavy_arc(
+        &mut self,
+        cx: f32,
+        cy: f32,
+        r: f32,
+        amp: f32,
+        n: f32,
+        phase: f32,
+        start: f32,
+        sweep: f32,
+        width: f32,
+        c: Rgba,
+    ) {
         let c8 = self.col(c).premul8();
         let (dx, dy) = self.dev(cx, cy);
         let s = self.s;
-        self.target().polar_stroke(dx, dy, r * s, amp * s, n, phase, start, sweep, width * s, c8);
+        self.target().polar_stroke(
+            dx,
+            dy,
+            r * s,
+            amp * s,
+            n,
+            phase,
+            start,
+            sweep,
+            width * s,
+            c8,
+        );
     }
 
     /// A horizontal wave from x0 to x1 (Material 3 wavy progress).
-    pub fn wavy_line(&mut self, x0: f32, x1: f32, y: f32, amp: f32, wavelength: f32, phase: f32, width: f32, c: Rgba) {
+    pub fn wavy_line(
+        &mut self,
+        x0: f32,
+        x1: f32,
+        y: f32,
+        amp: f32,
+        wavelength: f32,
+        phase: f32,
+        width: f32,
+        c: Rgba,
+    ) {
         if x1 - x0 < 0.5 {
             return;
         }
@@ -423,7 +532,8 @@ impl<'a> Canvas<'a> {
         let (a, yy) = self.dev(x0, y);
         let (b, _) = self.dev(x1, y);
         let s = self.s;
-        self.target().wave_h(a, b, yy, amp * s, wavelength * s, phase, width * s, c8);
+        self.target()
+            .wave_h(a, b, yy, amp * s, wavelength * s, phase, width * s, c8);
     }
 
     pub fn line(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, width: f32, c: Rgba) {
@@ -446,7 +556,14 @@ impl<'a> Canvas<'a> {
             let k = (i as f32 + 1.0) / steps as f32;
             let grow = size * k;
             let a = strength * 0.16 * (1.0 - k).powf(1.6);
-            self.rrect(x - grow * 0.6, y - grow * 0.35, w + grow * 1.2, h + grow * 1.2, r + grow, crate::color::rgba(0.0, 0.0, 0.0, a));
+            self.rrect(
+                x - grow * 0.6,
+                y - grow * 0.35,
+                w + grow * 1.2,
+                h + grow * 1.2,
+                r + grow,
+                crate::color::rgba(0.0, 0.0, 0.0, a),
+            );
         }
     }
 
@@ -456,8 +573,18 @@ impl<'a> Canvas<'a> {
         let dx = x + (w - img.w() * sc) / 2.0;
         let dy = y + (h - img.h() * sc) / 2.0;
         let it = Transform::from_row(sc, 0.0, 0.0, sc, dx, dy);
-        let pat = Pattern::new(img.pm.as_ref(), SpreadMode::Pad, tiny_skia::FilterQuality::Bilinear, self.alpha, it);
-        let p = Paint { shader: pat, anti_alias: true, ..Default::default() };
+        let pat = Pattern::new(
+            img.pm.as_ref(),
+            SpreadMode::Pad,
+            tiny_skia::FilterQuality::Bilinear,
+            self.alpha,
+            it,
+        );
+        let p = Paint {
+            shader: pat,
+            anti_alias: true,
+            ..Default::default()
+        };
         let t = self.tf();
         self.pm.fill_path(clip, &p, FillRule::Winding, t, None);
     }
@@ -479,7 +606,9 @@ impl<'a> Canvas<'a> {
             h.finish()
         });
         if !self.g.covers.contains_key(&key) {
-            let Some(mut pm) = Pixmap::new(size, size) else { return };
+            let Some(mut pm) = Pixmap::new(size, size) else {
+                return;
+            };
             let sc = (size as f32 / img.w()).max(size as f32 / img.h());
             let dx = (size as f32 - img.w() * sc) / 2.0;
             let dy = (size as f32 - img.h() * sc) / 2.0;
@@ -487,7 +616,10 @@ impl<'a> Canvas<'a> {
                 0,
                 0,
                 img.pm.as_ref(),
-                &tiny_skia::PixmapPaint { quality: tiny_skia::FilterQuality::Bilinear, ..Default::default() },
+                &tiny_skia::PixmapPaint {
+                    quality: tiny_skia::FilterQuality::Bilinear,
+                    ..Default::default()
+                },
                 Transform::from_row(sc, 0.0, 0.0, sc, dx, dy),
                 None,
             );
@@ -506,8 +638,14 @@ impl<'a> Canvas<'a> {
         let y0 = (dy - size as f32 / 2.0).round() as i32;
         let alpha = (self.alpha.clamp(0.0, 1.0) * 256.0) as u32;
         let (w, h) = (self.pm.width() as i32, self.pm.height() as i32);
-        let Some((pm, mask)) = self.g.covers.get(&key) else { return };
-        let mut t = crate::raster::Target { data: self.pm.data_mut(), w, h };
+        let Some((pm, mask)) = self.g.covers.get(&key) else {
+            return;
+        };
+        let mut t = crate::raster::Target {
+            data: self.pm.data_mut(),
+            w,
+            h,
+        };
         t.rotated(pm, mask, size as i32, x0, y0, rot, alpha);
     }
 
@@ -547,11 +685,24 @@ impl<'a> Canvas<'a> {
     }
 
     /// Draw text with its baseline at `y`. Returns the width in logical px.
-    pub fn text_base(&mut self, x: f32, y: f32, s: &str, face: Face, size: f32, c: Rgba, align: Align) -> f32 {
+    pub fn text_base(
+        &mut self,
+        x: f32,
+        y: f32,
+        s: &str,
+        face: Face,
+        size: f32,
+        c: Rgba,
+        align: Align,
+    ) -> f32 {
         let c8 = self.col(c).premul8();
         let sc = self.s;
         let px = size * sc;
-        let wdev = if align == Align::Left { 0.0 } else { self.g.fonts.width(s, face, px) };
+        let wdev = if align == Align::Left {
+            0.0
+        } else {
+            self.g.fonts.width(s, face, px)
+        };
         let start = match align {
             Align::Left => (x + self.ox) * sc,
             Align::Center => (x + self.ox) * sc - wdev / 2.0,
@@ -571,13 +722,32 @@ impl<'a> Canvas<'a> {
     }
 
     /// Draw text vertically centred on `cy` (by cap height, so digits and capitals sit in the middle).
-    pub fn text(&mut self, x: f32, cy: f32, s: &str, face: Face, size: f32, c: Rgba, align: Align) -> f32 {
+    pub fn text(
+        &mut self,
+        x: f32,
+        cy: f32,
+        s: &str,
+        face: Face,
+        size: f32,
+        c: Rgba,
+        align: Align,
+    ) -> f32 {
         let ch = self.g.fonts.cap_height(face, size * self.s) / self.s;
         self.text_base(x, cy + ch / 2.0, s, face, size, c, align)
     }
 
     /// Text cut to `max` px with an ellipsis.
-    pub fn text_max(&mut self, x: f32, cy: f32, s: &str, face: Face, size: f32, c: Rgba, align: Align, max: f32) -> f32 {
+    pub fn text_max(
+        &mut self,
+        x: f32,
+        cy: f32,
+        s: &str,
+        face: Face,
+        size: f32,
+        c: Rgba,
+        align: Align,
+        max: f32,
+    ) -> f32 {
         let t = self.g.fonts.elide(s, face, size * self.s, max * self.s);
         self.text(x, cy, &t, face, size, c, align)
     }
@@ -588,16 +758,19 @@ impl<'a> Canvas<'a> {
 
     /// A Material Symbols icon centred on (cx, cy), `size` px tall.
     pub fn icon(&mut self, name: &str, cx: f32, cy: f32, size: f32, c: Rgba) {
-        let Some(idx) = IconCache::find(name).or_else(|| IconCache::find("apps")) else { return };
+        let Some(idx) = IconCache::find(name).or_else(|| IconCache::find("apps")) else {
+            return;
+        };
         let px = (size * self.s).round().max(4.0) as u16;
         let c8 = self.col(c).premul8();
         let x0 = ((cx + self.ox) * self.s - px as f32 / 2.0).round() as i32;
         let y0 = ((cy + self.oy) * self.s - px as f32 / 2.0).round() as i32;
-        let Some(m) = self.g.icons.mask(idx, px) else { return };
+        let Some(m) = self.g.icons.mask(idx, px) else {
+            return;
+        };
         let m: *const u8 = m.as_ptr();
         // SAFETY: the mask lives in the cache, which is not modified while blitting.
         let cov = unsafe { std::slice::from_raw_parts(m, px as usize * px as usize) };
         self.blit(x0, y0, px as u32, px as u32, cov, c8);
     }
 }
-

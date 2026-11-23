@@ -10,7 +10,9 @@ use crate::theme::WPal;
 use crate::ui::{Act, Ctx, Hits, Out, Ui, WidgetId, fmt_time, month, weekday};
 
 fn moving(ctx: &Ctx) -> bool {
-    !(ctx.st.wm.covered && ctx.cfg.widgets.pause_covered) && !ctx.st.toggles.gaming && !ctx.cfg.performance.gaming
+    !(ctx.st.wm.covered && ctx.cfg.widgets.pause_covered)
+        && !ctx.st.toggles.gaming
+        && !ctx.cfg.performance.gaming
 }
 
 fn card(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32) {
@@ -23,7 +25,16 @@ fn card(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32) {
         cv.rrect_stroke(x, y, w, h, r, 1.0, wp.edge);
     }
     if wp.shine {
-        cv.rrect_vgrad(x, y, w, h, r, rgba(1.0, 1.0, 1.0, 0.045), rgba(1.0, 1.0, 1.0, 0.0), 0.45);
+        cv.rrect_vgrad(
+            x,
+            y,
+            w,
+            h,
+            r,
+            rgba(1.0, 1.0, 1.0, 0.045),
+            rgba(1.0, 1.0, 1.0, 0.0),
+            0.45,
+        );
     }
 }
 
@@ -66,7 +77,10 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, _ui: &mut Ui, hits: &mut Hits, id: Widge
         WidgetId::Player => {
             // only the cover, its ring and the line move
             let (cx, cy, r) = (m + w / 2.0, m + 118.0, 76.0 + 18.0);
-            damage = Some(vec![(cx - r, cy - r, r * 2.0, r * 2.0), (m + 8.0, m + 252.0, w - 16.0, 28.0)]);
+            damage = Some(vec![
+                (cx - r, cy - r, r * 2.0, r * 2.0),
+                (m + 8.0, m + 252.0, w - 16.0, 28.0),
+            ]);
             player(cv, ctx, &wp, hh, m, m, w, h)
         }
         WidgetId::Weather => weather(cv, ctx, &wp, m, m, w, h),
@@ -74,20 +88,52 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, _ui: &mut Ui, hits: &mut Hits, id: Widge
     };
     if edit {
         // a frame and the widget's name; dragging moves it
-        cv.rrect_stroke(m - 6.0, m - 6.0, w + 12.0, h + 12.0, 22.0, 1.5, wp.fg.alpha(0.55));
+        cv.rrect_stroke(
+            m - 6.0,
+            m - 6.0,
+            w + 12.0,
+            h + 12.0,
+            22.0,
+            1.5,
+            wp.fg.alpha(0.55),
+        );
         let name = id.name();
         let lw = cv.measure(name, Face::Medium, 11.0) + 16.0;
         cv.rrect(m, m - 2.0, lw, 20.0, 10.0, rgba(0.0, 0.0, 0.0, 0.55));
-        cv.text(m + 8.0, m + 8.0, name, Face::Medium, 11.0, crate::color::WHITE, Align::Left);
+        cv.text(
+            m + 8.0,
+            m + 8.0,
+            name,
+            Face::Medium,
+            11.0,
+            crate::color::WHITE,
+            Align::Left,
+        );
     }
-    Out { anim: anim && moving(ctx), input: None, done: false, damage: if edit { None } else { damage } }
+    Out {
+        anim: anim && moving(ctx),
+        input: None,
+        done: false,
+        damage: if edit { None } else { damage },
+    }
 }
 
 // ------------------------------------------------------------------ clock: two big lines
 
 /// One pair of digits; a digit that just changed rolls up into place (620 ms, with a little overshoot).
 #[allow(clippy::too_many_arguments)]
-fn digits(cv: &mut Canvas, ui: &Ui, now: std::time::Instant, x: f32, cy: f32, txt: &str, offset: usize, face: Face, px: f32, col: crate::color::Rgba) -> (f32, bool) {
+fn digits(
+    cv: &mut Canvas,
+    ui: &Ui,
+    now: std::time::Instant,
+    x: f32,
+    cy: f32,
+    txt: &str,
+    offset: usize,
+    face: Face,
+    px: f32,
+    col: crate::color::Rgba,
+) -> (f32, bool) {
     let t = crate::anim::progress(ui.clock_since, now, 620);
     let k = crate::anim::overshoot(t);
     let mut xx = x;
@@ -121,13 +167,26 @@ fn pair_w(cv: &mut Canvas, face: Face, px: f32) -> f32 {
     2.0 * cv.measure("0", face, px) - px * 0.04
 }
 
-fn clock(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, wp: &WPal, x: f32, y: f32, w: f32, h: f32) -> bool {
+fn clock(
+    cv: &mut Canvas,
+    ctx: &Ctx,
+    ui: &mut Ui,
+    wp: &WPal,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+) -> bool {
     let tm = crate::clock::now();
     let now = ctx.now;
     // the digits that just changed roll in
     let hhmm = format!("{:02}{:02}", tm.hour, tm.min);
     if ui.clock_shown != hhmm {
-        ui.clock_prev = if ui.clock_shown.is_empty() { hhmm.clone() } else { std::mem::take(&mut ui.clock_shown) };
+        ui.clock_prev = if ui.clock_shown.is_empty() {
+            hhmm.clone()
+        } else {
+            std::mem::take(&mut ui.clock_shown)
+        };
         ui.clock_shown = hhmm.clone();
         ui.clock_since = now;
     }
@@ -139,7 +198,12 @@ fn clock(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, wp: &WPal, x: f32, y: f32, w: 
     } else {
         crate::color::Rgba::hsla(ah.max(0.0), asat.clamp(0.25, 0.7), 0.86, 1.0)
     };
-    let date = format!("{} {} {}", &weekday(tm.wday)[..3], tm.mday, &month(tm.mon)[..3]);
+    let date = format!(
+        "{} {} {}",
+        &weekday(tm.wday)[..3],
+        tm.mday,
+        &month(tm.mon)[..3]
+    );
     let mut anim = false;
     match ctx.cfg.widgets.clock.style.as_str() {
         "stacked" => {
@@ -147,17 +211,53 @@ fn clock(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, wp: &WPal, x: f32, y: f32, w: 
             let pw = pair_w(cv, Face::Black, px);
             let cx = x + (w - pw) / 2.0;
             anim |= digits(cv, ui, now, cx, y + 92.0, hh, 0, Face::Black, px, tone).1;
-            anim |= digits(cv, ui, now, cx, y + 92.0 + 142.0, mm, 2, Face::Black, px, wp.fg).1;
+            anim |= digits(
+                cv,
+                ui,
+                now,
+                cx,
+                y + 92.0 + 142.0,
+                mm,
+                2,
+                Face::Black,
+                px,
+                wp.fg,
+            )
+            .1;
             // the date on a small pill
             let dw = cv.measure(&date, Face::Semi, 15.0) + 30.0;
             cv.rrect(x + (w - dw) / 2.0, y + h - 46.0, dw, 36.0, 18.0, wp.primary);
-            cv.text(x + w / 2.0, y + h - 28.0, &date, Face::Semi, 15.0, wp.ink_on, Align::Center);
+            cv.text(
+                x + w / 2.0,
+                y + h - 28.0,
+                &date,
+                Face::Semi,
+                15.0,
+                wp.ink_on,
+                Align::Center,
+            );
         }
         "tall" => {
             // tall narrow digits, one over the other
             let size = h * 0.52;
-            cv.text(x + w / 2.0, y + h * 0.25, hh, Face::Display, size, wp.fg, Align::Center);
-            cv.text(x + w / 2.0, y + h * 0.74, mm, Face::Display, size, wp.fg2.alpha(0.86), Align::Center);
+            cv.text(
+                x + w / 2.0,
+                y + h * 0.25,
+                hh,
+                Face::Display,
+                size,
+                wp.fg,
+                Align::Center,
+            );
+            cv.text(
+                x + w / 2.0,
+                y + h * 0.74,
+                mm,
+                Face::Display,
+                size,
+                wp.fg2.alpha(0.86),
+                Align::Center,
+            );
         }
         _ => {
             // expressive: hours and minutes side by side, big and heavy, the date under them
@@ -167,10 +267,30 @@ fn clock(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, wp: &WPal, x: f32, y: f32, w: 
             let x0 = x + (w - total) / 2.0;
             let cy = y + 96.0;
             anim |= digits(cv, ui, now, x0, cy, hh, 0, Face::Black, px, tone).1;
-            anim |= digits(cv, ui, now, x0 + pw + 22.0, cy, mm, 2, Face::Black, px, wp.fg).1;
+            anim |= digits(
+                cv,
+                ui,
+                now,
+                x0 + pw + 22.0,
+                cy,
+                mm,
+                2,
+                Face::Black,
+                px,
+                wp.fg,
+            )
+            .1;
             let a = cv.alpha;
             cv.alpha = a * 0.92;
-            cv.text(x0 + total - 10.0, y + h - 26.0, &date, Face::Bold, 26.0, wp.fg, Align::Right);
+            cv.text(
+                x0 + total - 10.0,
+                y + h - 26.0,
+                &date,
+                Face::Bold,
+                26.0,
+                wp.fg,
+                Align::Right,
+            );
             cv.alpha = a;
         }
     }
@@ -186,19 +306,53 @@ fn user(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32) -
     match &u.avatar {
         Some(img) => cv.image_rrect(img, ax - r, ay - r, r * 2.0, r * 2.0, 20.0),
         None => {
-            cv.shape(Shape::parse(&ctx.cfg.theme.shape), ax, ay, r, 0.0, wp.primary);
-            let l: String = u.name.chars().next().map(|c| c.to_uppercase().collect()).unwrap_or_default();
+            cv.shape(
+                Shape::parse(&ctx.cfg.theme.shape),
+                ax,
+                ay,
+                r,
+                0.0,
+                wp.primary,
+            );
+            let l: String = u
+                .name
+                .chars()
+                .next()
+                .map(|c| c.to_uppercase().collect())
+                .unwrap_or_default();
             cv.text(ax, ay, &l, Face::Bold, 28.0, wp.ink_on, Align::Center);
         }
     }
     let tm = crate::clock::now();
     let tx = ax + r + 18.0;
-    cv.text_max(tx, ay - 20.0, &format!("Hi, {}!", u.name), Face::Bold, 18.0, wp.fg, Align::Left, w - (tx - x) - 12.0);
-    cv.text(tx, ay + 3.0, crate::clock::greeting(tm.hour), Face::Regular, 14.0, wp.fg2, Align::Left);
+    cv.text_max(
+        tx,
+        ay - 20.0,
+        &format!("Hi, {}!", u.name),
+        Face::Bold,
+        18.0,
+        wp.fg,
+        Align::Left,
+        w - (tx - x) - 12.0,
+    );
+    cv.text(
+        tx,
+        ay + 3.0,
+        crate::clock::greeting(tm.hour),
+        Face::Regular,
+        14.0,
+        wp.fg2,
+        Align::Left,
+    );
     cv.text_max(
         tx,
         ay + 24.0,
-        &format!("Today · {} {} {}", weekday(tm.wday), tm.mday, &month(tm.mon)[..3]),
+        &format!(
+            "Today · {} {} {}",
+            weekday(tm.wday),
+            tm.mday,
+            &month(tm.mon)[..3]
+        ),
         Face::Regular,
         11.0,
         wp.fg3,
@@ -219,13 +373,22 @@ fn trio(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32) -
     let r = d / 2.0;
     let x0 = x + (w - (3.0 * d + 2.0 * gap)) / 2.0;
     let mv = moving(ctx);
-    let rot = if mv { crate::ui::secs(ctx.now) * std::f32::consts::TAU / 60.0 } else { 0.0 };
-    let items: [(&str, Option<f32>); 3] = [("CPU", Some(s.cpu)), ("GPU", s.gpu), ("RAM", Some(s.ram))];
+    let rot = if mv {
+        crate::ui::secs(ctx.now) * std::f32::consts::TAU / 60.0
+    } else {
+        0.0
+    };
+    let items: [(&str, Option<f32>); 3] =
+        [("CPU", Some(s.cpu)), ("GPU", s.gpu), ("RAM", Some(s.ram))];
     for (i, (label, v)) in items.iter().enumerate() {
         let cx = x0 + r + i as f32 * (d + gap);
         let cy = y + h / 2.0;
         let mid = i == 1;
-        let (ink, fill) = if mid { (wp.ink_tertiary, wp.tertiary) } else { (wp.fg, wp.shape_fill) };
+        let (ink, fill) = if mid {
+            (wp.ink_tertiary, wp.tertiary)
+        } else {
+            (wp.fg, wp.shape_fill)
+        };
         if mid {
             cv.circle(cx, cy, r, fill);
         } else {
@@ -235,10 +398,26 @@ fn trio(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32) -
             Some(v) => format!("{}%", (v * 100.0).round()),
             None => "—".into(),
         };
-        cv.text(cx, cy - d * 0.06, &txt, Face::Semi, (d * 0.24).round(), ink, Align::Center);
+        cv.text(
+            cx,
+            cy - d * 0.06,
+            &txt,
+            Face::Semi,
+            (d * 0.24).round(),
+            ink,
+            Align::Center,
+        );
         let a = cv.alpha;
         cv.alpha = a * 0.8;
-        cv.text(cx, cy + d * 0.17, label, Face::Regular, (d * 0.12).round(), ink, Align::Center);
+        cv.text(
+            cx,
+            cy + d * 0.17,
+            label,
+            Face::Regular,
+            (d * 0.12).round(),
+            ink,
+            Align::Center,
+        );
         cv.alpha = a;
     }
     mv
@@ -247,7 +426,17 @@ fn trio(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32) -
 // ------------------------------------------------------------------ focus timer
 
 #[allow(clippy::too_many_arguments)]
-fn focus(cv: &mut Canvas, ctx: &Ctx, ui: &Ui, wp: &WPal, hits: &mut Hits, x: f32, y: f32, w: f32, h: f32) -> bool {
+fn focus(
+    cv: &mut Canvas,
+    ctx: &Ctx,
+    ui: &Ui,
+    wp: &WPal,
+    hits: &mut Hits,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+) -> bool {
     let f = &ui.focus;
     let now = ctx.now;
     let (cx, cy, r) = (x + w / 2.0, y + 126.0, 66.0);
@@ -276,49 +465,163 @@ fn focus(cv: &mut Canvas, ctx: &Ctx, ui: &Ui, wp: &WPal, hits: &mut Hits, x: f32
             if on {
                 cv.rrect(bx + 2.0, y + 16.0, segw - 4.0, 28.0, 14.0, wp.fg);
             } else {
-                cv.rrect(bx + 2.0, y + 16.0, segw - 4.0, 28.0, 14.0, if hov { wp.chip_hover } else { wp.chip });
+                cv.rrect(
+                    bx + 2.0,
+                    y + 16.0,
+                    segw - 4.0,
+                    28.0,
+                    14.0,
+                    if hov { wp.chip_hover } else { wp.chip },
+                );
             }
-            cv.text(bx + segw / 2.0, y + 30.0, label, Face::Semi, 12.0, if on { wp.ink_on } else { wp.fg3 }, Align::Center);
+            cv.text(
+                bx + segw / 2.0,
+                y + 30.0,
+                label,
+                Face::Semi,
+                12.0,
+                if on { wp.ink_on } else { wp.fg3 },
+                Align::Center,
+            );
         }
-        let sub = if f.on_break { "breathe" } else if f.running { "stay with it" } else { "ready?" };
-        cv.text(cx, cy + 24.0, sub, Face::Regular, 11.0, wp.fg3, Align::Center);
+        let sub = if f.on_break {
+            "breathe"
+        } else if f.running {
+            "stay with it"
+        } else {
+            "ready?"
+        };
+        cv.text(
+            cx,
+            cy + 24.0,
+            sub,
+            Face::Regular,
+            11.0,
+            wp.fg3,
+            Align::Center,
+        );
         // buttons
         let by = y + 234.0;
-        crate::ui::icon_button(cv, hits, cx - 58.0, by, 17.0, "refresh", wp.fg2, wp.chip, wp.chip_hover, Act::FocusReset);
+        crate::ui::icon_button(
+            cv,
+            hits,
+            cx - 58.0,
+            by,
+            17.0,
+            "refresh",
+            wp.fg2,
+            wp.chip,
+            wp.chip_hover,
+            Act::FocusReset,
+        );
         let hov = hits.add(cx - 24.0, by - 24.0, 48.0, 48.0, Act::FocusToggle);
         cv.circle(cx, by, if hov { 25.0 } else { 24.0 }, wp.fg);
-        cv.icon(if f.running { "pause" } else { "play_arrow" }, cx, by, 26.0, wp.ink_on);
-        crate::ui::icon_button(cv, hits, cx + 58.0, by, 17.0, "skip_next", wp.fg2, wp.chip, wp.chip_hover, Act::FocusSkip);
+        cv.icon(
+            if f.running { "pause" } else { "play_arrow" },
+            cx,
+            by,
+            26.0,
+            wp.ink_on,
+        );
+        crate::ui::icon_button(
+            cv,
+            hits,
+            cx + 58.0,
+            by,
+            17.0,
+            "skip_next",
+            wp.fg2,
+            wp.chip,
+            wp.chip_hover,
+            Act::FocusSkip,
+        );
         // sessions and length
         let dy = y + h - 22.0;
         for i in 0..4 {
             let on = (f.done_sessions % 4) > i;
-            cv.circle(cx - 66.0 + i as f32 * 9.0, dy, 2.6, if on { wp.fg } else { wp.fg4 });
+            cv.circle(
+                cx - 66.0 + i as f32 * 9.0,
+                dy,
+                2.6,
+                if on { wp.fg } else { wp.fg4 },
+            );
         }
-        let minutes = if f.on_break { f.break_minutes } else { f.minutes };
+        let minutes = if f.on_break {
+            f.break_minutes
+        } else {
+            f.minutes
+        };
         hits.add(cx - 22.0, dy - 10.0, 16.0, 20.0, Act::FocusMinutes(-1));
         cv.text(cx - 14.0, dy, "−", Face::Semi, 13.0, wp.fg2, Align::Center);
-        cv.text(cx + 12.0, dy, &format!("{minutes} min"), Face::Medium, 11.0, wp.fg3, Align::Center);
+        cv.text(
+            cx + 12.0,
+            dy,
+            &format!("{minutes} min"),
+            Face::Medium,
+            11.0,
+            wp.fg3,
+            Align::Center,
+        );
         hits.add(cx + 32.0, dy - 10.0, 16.0, 20.0, Act::FocusMinutes(1));
         cv.text(cx + 40.0, dy, "+", Face::Semi, 13.0, wp.fg2, Align::Center);
     });
     // the wavy sun that turns while the clock runs, and the time
     let left = f.remaining(now);
     let total = f.total().max(1.0);
-    let rot = if f.running && moving(ctx) { crate::ui::secs(now) * 0.35 } else { 0.0 };
-    cv.wavy_arc(cx, cy, r - 4.0, 4.2, 14.0, rot * 6.0, 0.0, std::f32::consts::TAU, 5.0, wp.fg.alpha(if f.running { 1.0 } else { 0.92 }));
+    let rot = if f.running && moving(ctx) {
+        crate::ui::secs(now) * 0.35
+    } else {
+        0.0
+    };
+    cv.wavy_arc(
+        cx,
+        cy,
+        r - 4.0,
+        4.2,
+        14.0,
+        rot * 6.0,
+        0.0,
+        std::f32::consts::TAU,
+        5.0,
+        wp.fg.alpha(if f.running { 1.0 } else { 0.92 }),
+    );
     if f.running || left < total - 0.5 {
         let done = 1.0 - (left / total) as f32;
-        cv.arc(cx, cy, r - 14.0, -std::f32::consts::FRAC_PI_2, std::f32::consts::TAU * done, 3.0, wp.primary.alpha(0.8));
+        cv.arc(
+            cx,
+            cy,
+            r - 14.0,
+            -std::f32::consts::FRAC_PI_2,
+            std::f32::consts::TAU * done,
+            3.0,
+            wp.primary.alpha(0.8),
+        );
     }
-    cv.text(cx, cy - 4.0, &fmt_time(left.ceil()), Face::Numbers, 34.0, wp.fg, Align::Center);
+    cv.text(
+        cx,
+        cy - 4.0,
+        &fmt_time(left.ceil()),
+        Face::Numbers,
+        34.0,
+        wp.fg,
+        Align::Center,
+    );
     f.running
 }
 
 // ------------------------------------------------------------------ the player
 
 #[allow(clippy::too_many_arguments)]
-fn player(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, hits: &mut Hits, x: f32, y: f32, w: f32, h: f32) -> bool {
+fn player(
+    cv: &mut Canvas,
+    ctx: &Ctx,
+    wp: &WPal,
+    hits: &mut Hits,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+) -> bool {
     let m = &ctx.st.media;
     let now = ctx.now;
     let mv = moving(ctx) && m.playing;
@@ -349,18 +652,84 @@ fn player(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, hits: &mut Hits, x: f32, y: f32
         } else {
             format!("{} – {}", m.title, m.artist)
         };
-        cv.text_max(x + 20.0, y + 236.0, &line, Face::Semi, 14.0, wp.fg, Align::Left, w - 40.0);
+        cv.text_max(
+            x + 20.0,
+            y + 236.0,
+            &line,
+            Face::Semi,
+            14.0,
+            wp.fg,
+            Align::Left,
+            w - 40.0,
+        );
         hits.slider(x0 - 6.0, ly - 12.0, x1 - x0 + 12.0, 24.0, Act::Seek);
         cv.circle(x1, ly, 2.0, wp.fg2);
         let by = y + h - 46.0;
         let mid = x + w / 2.0;
-        crate::ui::icon_button(cv, hits, mid - 104.0, by, 17.0, "skip_previous", wp.fg2, wp.chip, wp.chip_hover, Act::Prev);
-        crate::ui::icon_button(cv, hits, mid - 58.0, by, 17.0, "fast_rewind", wp.fg2, wp.chip, wp.chip_hover, Act::SeekRel(-10.0));
+        crate::ui::icon_button(
+            cv,
+            hits,
+            mid - 104.0,
+            by,
+            17.0,
+            "skip_previous",
+            wp.fg2,
+            wp.chip,
+            wp.chip_hover,
+            Act::Prev,
+        );
+        crate::ui::icon_button(
+            cv,
+            hits,
+            mid - 58.0,
+            by,
+            17.0,
+            "fast_rewind",
+            wp.fg2,
+            wp.chip,
+            wp.chip_hover,
+            Act::SeekRel(-10.0),
+        );
         let hov = hits.add(mid - 32.0, by - 20.0, 64.0, 40.0, Act::PlayPause);
-        cv.rrect(mid - 32.0, by - 20.0, 64.0, 40.0, 20.0, if hov { wp.fg.alpha(0.9) } else { wp.fg });
-        cv.icon(if m.playing { "pause" } else { "play_arrow" }, mid, by, 24.0, wp.ink_on);
-        crate::ui::icon_button(cv, hits, mid + 58.0, by, 17.0, "fast_forward", wp.fg2, wp.chip, wp.chip_hover, Act::SeekRel(10.0));
-        crate::ui::icon_button(cv, hits, mid + 104.0, by, 17.0, "skip_next", wp.fg2, wp.chip, wp.chip_hover, Act::Next);
+        cv.rrect(
+            mid - 32.0,
+            by - 20.0,
+            64.0,
+            40.0,
+            20.0,
+            if hov { wp.fg.alpha(0.9) } else { wp.fg },
+        );
+        cv.icon(
+            if m.playing { "pause" } else { "play_arrow" },
+            mid,
+            by,
+            24.0,
+            wp.ink_on,
+        );
+        crate::ui::icon_button(
+            cv,
+            hits,
+            mid + 58.0,
+            by,
+            17.0,
+            "fast_forward",
+            wp.fg2,
+            wp.chip,
+            wp.chip_hover,
+            Act::SeekRel(10.0),
+        );
+        crate::ui::icon_button(
+            cv,
+            hits,
+            mid + 104.0,
+            by,
+            17.0,
+            "skip_next",
+            wp.fg2,
+            wp.chip,
+            wp.chip_hover,
+            Act::Next,
+        );
     });
     // what moves: the cover, the ring and the line
     let rot = if mv { crate::ui::secs(now) * 0.2 } else { 0.0 };
@@ -389,7 +758,16 @@ fn player(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, hits: &mut Hits, x: f32, y: f32
     let fx = x0 + (x1 - x0) * frac;
     cv.line((fx + 8.0).min(x1), ly, x1 - 6.0, ly, 3.0, wp.track);
     if ctx.cfg.theme.wavy && mv {
-        cv.wavy_line(x0, fx, ly, 3.0, 22.0, -crate::ui::secs(now) * 3.0, 3.0, wp.fg);
+        cv.wavy_line(
+            x0,
+            fx,
+            ly,
+            3.0,
+            22.0,
+            -crate::ui::secs(now) * 3.0,
+            3.0,
+            wp.fg,
+        );
     } else {
         cv.line(x0, ly, fx, ly, 3.0, wp.fg);
     }
@@ -404,21 +782,73 @@ fn weather(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32
     let wst = &ctx.st.weather;
     if !wst.ok {
         cv.icon("cloud", x + w / 2.0, y + h / 2.0 - 10.0, 34.0, wp.fg3);
-        cv.text(x + w / 2.0, y + h / 2.0 + 26.0, "Weather loading…", Face::Regular, 12.0, wp.fg3, Align::Center);
+        cv.text(
+            x + w / 2.0,
+            y + h / 2.0 + 26.0,
+            "Weather loading…",
+            Face::Regular,
+            12.0,
+            wp.fg3,
+            Align::Center,
+        );
         return false;
     }
-    cv.shape(Shape::Cookie(7), x + 58.0, y + h / 2.0, 38.0, 0.0, wp.shape_fill);
+    cv.shape(
+        Shape::Cookie(7),
+        x + 58.0,
+        y + h / 2.0,
+        38.0,
+        0.0,
+        wp.shape_fill,
+    );
     cv.icon(wst.icon, x + 58.0, y + h / 2.0, 40.0, wp.primary);
-    cv.text(x + 112.0, y + 50.0, &format!("{:.0}°", wst.temp), Face::Numbers, 38.0, wp.fg, Align::Left);
-    cv.text_max(x + 112.0, y + 86.0, &wst.desc, Face::Medium, 13.0, wp.fg2, Align::Left, w - 128.0);
-    cv.text_max(x + 112.0, y + 108.0, &format!("{} · ↑{:.0}° ↓{:.0}°", wst.city, wst.max, wst.min), Face::Regular, 11.0, wp.fg3, Align::Left, w - 128.0);
+    cv.text(
+        x + 112.0,
+        y + 50.0,
+        &format!("{:.0}°", wst.temp),
+        Face::Numbers,
+        38.0,
+        wp.fg,
+        Align::Left,
+    );
+    cv.text_max(
+        x + 112.0,
+        y + 86.0,
+        &wst.desc,
+        Face::Medium,
+        13.0,
+        wp.fg2,
+        Align::Left,
+        w - 128.0,
+    );
+    cv.text_max(
+        x + 112.0,
+        y + 108.0,
+        &format!("{} · ↑{:.0}° ↓{:.0}°", wst.city, wst.max, wst.min),
+        Face::Regular,
+        11.0,
+        wp.fg3,
+        Align::Left,
+        w - 128.0,
+    );
     false
 }
 
 fn calendar(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32) -> bool {
     card(cv, ctx, wp, x, y, w, h);
     let tm = crate::clock::now();
-    crate::ui::card::calendar(cv, ctx, x + 14.0, y + 14.0, w - 28.0, &tm, wp.fg, wp.fg3, wp.primary, wp.ink_on);
+    crate::ui::card::calendar(
+        cv,
+        ctx,
+        x + 14.0,
+        y + 14.0,
+        w - 28.0,
+        &tm,
+        wp.fg,
+        wp.fg3,
+        wp.primary,
+        wp.ink_on,
+    );
     let _ = h;
     false
 }
@@ -428,7 +858,12 @@ fn calendar(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f3
 pub fn draw_viz(cv: &mut Canvas, ctx: &Ctx, _ui: &mut Ui) -> Out {
     let st = ctx.st;
     if !st.viz_on || st.viz.is_empty() || !moving(ctx) {
-        return Out { anim: false, input: Some(vec![]), done: false, damage: None };
+        return Out {
+            anim: false,
+            input: Some(vec![]),
+            done: false,
+            damage: None,
+        };
     }
     let vc = &ctx.cfg.widgets.visualizer;
     let (w, h) = (cv.w(), cv.h());
@@ -451,7 +886,10 @@ pub fn draw_viz(cv: &mut Canvas, ctx: &Ctx, _ui: &mut Ui) -> Out {
             let mut pb = tiny_skia::PathBuilder::new();
             pb.move_to(0.0, h);
             for (i, v) in st.viz.iter().enumerate() {
-                pb.line_to(slot * (i as f32 + 0.5), h - 4.0 - v.clamp(0.0, 1.0) * (h - 8.0));
+                pb.line_to(
+                    slot * (i as f32 + 0.5),
+                    h - 4.0 - v.clamp(0.0, 1.0) * (h - 8.0),
+                );
             }
             pb.line_to(w, h);
             pb.close();
@@ -471,7 +909,12 @@ pub fn draw_viz(cv: &mut Canvas, ctx: &Ctx, _ui: &mut Ui) -> Out {
                 let k = (v.clamp(0.0, 1.0) * 6.0).round() as i32;
                 let x = slot * (i as f32 + 0.5);
                 for d in 0..=k {
-                    cv.circle(x, h - 6.0 - d as f32 * (bw + 3.0), bw / 2.0, color(i).alpha(0.9));
+                    cv.circle(
+                        x,
+                        h - 6.0 - d as f32 * (bw + 3.0),
+                        bw / 2.0,
+                        color(i).alpha(0.9),
+                    );
                 }
             }
         }
@@ -484,5 +927,10 @@ pub fn draw_viz(cv: &mut Canvas, ctx: &Ctx, _ui: &mut Ui) -> Out {
         }
     }
     // frames come from cava; no frame callbacks needed
-    Out { anim: false, input: Some(vec![]), done: false, damage: None }
+    Out {
+        anim: false,
+        input: Some(vec![]),
+        done: false,
+        damage: None,
+    }
 }

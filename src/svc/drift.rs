@@ -31,7 +31,9 @@ pub fn socket() -> PathBuf {
         return PathBuf::from(p);
     }
     let disp = std::env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-0".into());
-    crate::config::runtime_dir().join("driftwm").join(format!("ipc-{disp}.sock"))
+    crate::config::runtime_dir()
+        .join("driftwm")
+        .join(format!("ipc-{disp}.sock"))
 }
 
 pub fn request(req: &Value) -> Option<Value> {
@@ -90,55 +92,66 @@ fn connect(app: &mut App) {
     let _ = s.set_nonblocking(true);
     refresh_bookmarks(app);
     let mut acc = Vec::<u8>::new();
-    let _ = app.lh.insert_source(Generic::new(s, Interest::READ, Mode::Level), move |_, s, app| {
-        let mut buf = [0u8; 32768];
-        loop {
-            match (&**s).read(&mut buf) {
-                Ok(0) => {
-                    retry(app);
-                    return Ok(PostAction::Remove);
-                }
-                Ok(n) => {
-                    acc.extend_from_slice(&buf[..n]);
-                    while let Some(p) = acc.iter().position(|&b| b == b'\n') {
-                        let line: Vec<u8> = acc.drain(..=p).collect();
-                        let l = String::from_utf8_lossy(&line).trim().to_string();
-                        if l.starts_with("{\"State\"") {
-                            app.svc.drift.pending = Some(l);
+    let _ = app.lh.insert_source(
+        Generic::new(s, Interest::READ, Mode::Level),
+        move |_, s, app| {
+            let mut buf = [0u8; 32768];
+            loop {
+                match (&**s).read(&mut buf) {
+                    Ok(0) => {
+                        retry(app);
+                        return Ok(PostAction::Remove);
+                    }
+                    Ok(n) => {
+                        acc.extend_from_slice(&buf[..n]);
+                        while let Some(p) = acc.iter().position(|&b| b == b'\n') {
+                            let line: Vec<u8> = acc.drain(..=p).collect();
+                            let l = String::from_utf8_lossy(&line).trim().to_string();
+                            if l.starts_with("{\"State\"") {
+                                app.svc.drift.pending = Some(l);
+                            }
                         }
+                        if acc.len() > 4 << 20 {
+                            acc.clear();
+                        }
+                        coalesce(app);
                     }
-                    if acc.len() > 4 << 20 {
-                        acc.clear();
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        return Ok(PostAction::Continue);
                     }
-                    coalesce(app);
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => return Ok(PostAction::Continue),
-                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                Err(_) => {
-                    retry(app);
-                    return Ok(PostAction::Remove);
+                    Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(_) => {
+                        retry(app);
+                        return Ok(PostAction::Remove);
+                    }
                 }
             }
-        }
-    });
+        },
+    );
 }
 
 fn retry(app: &mut App) {
-    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_secs(2)), |_, _, app: &mut App| {
-        if socket().exists() {
-            connect(app);
-        } else {
-            retry(app);
-        }
-        TimeoutAction::Drop
-    });
+    let _ = app.lh.insert_source(
+        Timer::from_duration(Duration::from_secs(2)),
+        |_, _, app: &mut App| {
+            if socket().exists() {
+                connect(app);
+            } else {
+                retry(app);
+            }
+            TimeoutAction::Drop
+        },
+    );
 }
 
 /// While the camera glides driftwm sends a snapshot every frame; look at most 20 times a second.
 fn coalesce(app: &mut App) {
     let d = &mut app.svc.drift;
     let now = Instant::now();
-    let since = d.last.map(|l| now.saturating_duration_since(l)).unwrap_or(Duration::from_secs(1));
+    let since = d
+        .last
+        .map(|l| now.saturating_duration_since(l))
+        .unwrap_or(Duration::from_secs(1));
     if since >= Duration::from_millis(50) {
         process(app);
         return;
@@ -147,17 +160,24 @@ fn coalesce(app: &mut App) {
         return;
     }
     d.armed = true;
-    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(50) - since), |_, _, app: &mut App| {
-        app.svc.drift.armed = false;
-        process(app);
-        TimeoutAction::Drop
-    });
+    let _ = app.lh.insert_source(
+        Timer::from_duration(Duration::from_millis(50) - since),
+        |_, _, app: &mut App| {
+            app.svc.drift.armed = false;
+            process(app);
+            TimeoutAction::Drop
+        },
+    );
 }
 
 fn process(app: &mut App) {
-    let Some(line) = app.svc.drift.pending.take() else { return };
+    let Some(line) = app.svc.drift.pending.take() else {
+        return;
+    };
     app.svc.drift.last = Some(Instant::now());
-    let Ok(v) = serde_json::from_str::<Value>(&line) else { return };
+    let Ok(v) = serde_json::from_str::<Value>(&line) else {
+        return;
+    };
     let st = &v["State"];
     let active_bm = st["active_bookmark"].as_str().map(str::to_string);
     if active_bm != app.svc.drift.active_bm || app.svc.drift.bookmarks.is_empty() {
@@ -167,7 +187,10 @@ fn process(app: &mut App) {
     app.svc.drift.active_bm = active_bm.clone();
     // the focused output's viewport
     let outs = st["outputs"].as_array().cloned().unwrap_or_default();
-    let out = outs.iter().find(|o| o["active"].as_bool() == Some(true)).or(outs.first());
+    let out = outs
+        .iter()
+        .find(|o| o["active"].as_bool() == Some(true))
+        .or(outs.first());
     let (vw, vh, cx, cy) = match out {
         Some(o) => {
             let z = o["zoom"].as_f64().unwrap_or(1.0).max(0.05);
@@ -184,7 +207,10 @@ fn process(app: &mut App) {
     let overlaps = |wx: f64, wy: f64, ww: f64, wh: f64, x: f64, y: f64| {
         (wx - x).abs() < (ww + vw) / 2.0 - 1.0 && (wy - y).abs() < (wh + vh) / 2.0 - 1.0
     };
-    let live: Vec<&Value> = wins.iter().filter(|w| !w["is_widget"].as_bool().unwrap_or(false)).collect();
+    let live: Vec<&Value> = wins
+        .iter()
+        .filter(|w| !w["is_widget"].as_bool().unwrap_or(false))
+        .collect();
     let mut list = Vec::new();
     let mut active = 0;
     for (i, (name, bx, by)) in app.svc.drift.bookmarks.iter().enumerate() {
@@ -204,7 +230,11 @@ fn process(app: &mut App) {
         if Some(name) == active_bm.as_ref() {
             active = i as i32 + 1;
         }
-        list.push(Ws { id: i as i32 + 1, name: name.clone(), windows: n as u32 });
+        list.push(Ws {
+            id: i as i32 + 1,
+            name: name.clone(),
+            windows: n as u32,
+        });
     }
     let covered = live.iter().any(|w| {
         overlaps(
@@ -215,8 +245,13 @@ fn process(app: &mut App) {
             cx,
             cy,
         )
-    }) || st["fullscreen"].as_array().map(|a| !a.is_empty()).unwrap_or(false);
-    let focused = wins.iter().find(|w| w["is_focused"].as_bool() == Some(true));
+    }) || st["fullscreen"]
+        .as_array()
+        .map(|a| !a.is_empty())
+        .unwrap_or(false);
+    let focused = wins
+        .iter()
+        .find(|w| w["is_focused"].as_bool() == Some(true));
     let mut apps: Vec<(String, u32, bool)> = Vec::new();
     for w in &live {
         let id = w["app_id"].as_str().unwrap_or("").to_string();
@@ -238,9 +273,18 @@ fn process(app: &mut App) {
     wm.workspaces = list;
     wm.active = active;
     wm.covered = covered;
-    wm.fullscreen = st["fullscreen"].as_array().map(|a| !a.is_empty()).unwrap_or(false);
-    wm.title = focused.and_then(|w| w["title"].as_str()).unwrap_or("").to_string();
-    wm.class = focused.and_then(|w| w["app_id"].as_str()).unwrap_or("").to_string();
+    wm.fullscreen = st["fullscreen"]
+        .as_array()
+        .map(|a| !a.is_empty())
+        .unwrap_or(false);
+    wm.title = focused
+        .and_then(|w| w["title"].as_str())
+        .unwrap_or("")
+        .to_string();
+    wm.class = focused
+        .and_then(|w| w["app_id"].as_str())
+        .unwrap_or("")
+        .to_string();
     wm.layout = st["layout_short"].as_str().unwrap_or("").to_string();
     app.mark(topic::WM);
     if ws_changed {
