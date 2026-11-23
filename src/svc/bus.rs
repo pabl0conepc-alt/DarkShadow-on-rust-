@@ -67,9 +67,7 @@ pub fn start(app: &mut App) {
         let _ = c.add_match_no_cb(
             "type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='/org/mpris/MediaPlayer2'",
         );
-        let _ = c.add_match_no_cb(
-            "type='signal',interface='org.mpris.MediaPlayer2.Player',member='Seeked'",
-        );
+        let _ = c.add_match_no_cb("type='signal',interface='org.mpris.MediaPlayer2.Player',member='Seeked'");
         let _ = c.add_match_no_cb(
             "type='signal',sender='org.freedesktop.DBus',interface='org.freedesktop.DBus',member='NameOwnerChanged',arg0namespace='org.mpris.MediaPlayer2'",
         );
@@ -100,23 +98,16 @@ pub fn start(app: &mut App) {
 
 fn watch(app: &mut App, c: &Rc<LocalConnection>, system: bool) {
     let fd = c.channel().watch().fd;
-    let _ = app.lh.insert_source(
-        Generic::new(Fd(fd), Interest::READ, Mode::Level),
-        move |_, _, app| {
-            let c = if system {
-                app.svc.bus.system.clone()
-            } else {
-                app.svc.bus.session.clone()
-            };
-            if let Some(c) = c {
-                if c.channel().read_write(Some(Duration::ZERO)).is_err() {
-                    return Ok(PostAction::Remove);
-                }
-                pump(app, &c, system);
+    let _ = app.lh.insert_source(Generic::new(Fd(fd), Interest::READ, Mode::Level), move |_, _, app| {
+        let c = if system { app.svc.bus.system.clone() } else { app.svc.bus.session.clone() };
+        if let Some(c) = c {
+            if c.channel().read_write(Some(Duration::ZERO)).is_err() {
+                return Ok(PostAction::Remove);
             }
-            Ok(PostAction::Continue)
-        },
-    );
+            pump(app, &c, system);
+        }
+        Ok(PostAction::Continue)
+    });
 }
 
 fn pump(app: &mut App, c: &Rc<LocalConnection>, system: bool) {
@@ -172,21 +163,13 @@ fn on_session(app: &mut App, c: &Rc<LocalConnection>, m: &Message) {
                     }
                     if !new.is_empty() {
                         app.svc.bus.owners.insert(new.clone(), name.clone());
-                        app.svc.bus.players.insert(
-                            name.clone(),
-                            Player {
-                                unique: new,
-                                status: String::new(),
-                            },
-                        );
+                        app.svc.bus.players.insert(name.clone(), Player { unique: new, status: String::new() });
                         read_player(app, &name);
                     }
                     pick_player(app);
                 }
                 "PropertiesChanged" => {
-                    let Some(name) = app.svc.bus.owners.get(&sender).cloned() else {
-                        return;
-                    };
+                    let Some(name) = app.svc.bus.owners.get(&sender).cloned() else { return };
                     let (iface, changed): (String, PropMap) = match m.read2() {
                         Ok(v) => v,
                         Err(_) => return,
@@ -212,9 +195,7 @@ fn on_session(app: &mut App, c: &Rc<LocalConnection>, m: &Message) {
                     }
                 }
                 "Seeked" => {
-                    let Some(name) = app.svc.bus.owners.get(&sender).cloned() else {
-                        return;
-                    };
+                    let Some(name) = app.svc.bus.owners.get(&sender).cloned() else { return };
                     if name == app.svc.bus.active {
                         let pos: i64 = m.read1().unwrap_or(0);
                         app.st.media.pos_us = pos;
@@ -230,34 +211,20 @@ fn on_session(app: &mut App, c: &Rc<LocalConnection>, m: &Message) {
 }
 
 fn scan_players(app: &mut App) {
-    let Some(c) = app.svc.bus.session.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.session.clone() else { return };
     let p = c.with_proxy("org.freedesktop.DBus", "/org/freedesktop/DBus", T);
-    let names: (Vec<String>,) = p
-        .method_call("org.freedesktop.DBus", "ListNames", ())
-        .unwrap_or_default();
+    let names: (Vec<String>,) = p.method_call("org.freedesktop.DBus", "ListNames", ()).unwrap_or_default();
     for n in names.0.into_iter().filter(|n| n.starts_with(MPRIS)) {
-        let owner: (String,) = p
-            .method_call("org.freedesktop.DBus", "GetNameOwner", (n.as_str(),))
-            .unwrap_or_default();
+        let owner: (String,) = p.method_call("org.freedesktop.DBus", "GetNameOwner", (n.as_str(),)).unwrap_or_default();
         app.svc.bus.owners.insert(owner.0.clone(), n.clone());
-        app.svc.bus.players.insert(
-            n.clone(),
-            Player {
-                unique: owner.0,
-                status: String::new(),
-            },
-        );
+        app.svc.bus.players.insert(n.clone(), Player { unique: owner.0, status: String::new() });
         read_player(app, &n);
     }
     pick_player(app);
 }
 
 fn read_player(app: &mut App, name: &str) {
-    let Some(c) = app.svc.bus.session.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.session.clone() else { return };
     let p = c.with_proxy(name, "/org/mpris/MediaPlayer2", T);
     if let Ok(props) = p.get_all(PLAYER) {
         if let Some(s) = props.get("PlaybackStatus").and_then(|v| v.0.as_str())
@@ -274,11 +241,7 @@ fn read_player(app: &mut App, name: &str) {
 /// The player shown: the one playing, else the one shown before, else any.
 fn pick_player(app: &mut App) {
     let b = &app.svc.bus;
-    let playing = b
-        .players
-        .iter()
-        .find(|(_, p)| p.status == "Playing")
-        .map(|(n, _)| n.clone());
+    let playing = b.players.iter().find(|(_, p)| p.status == "Playing").map(|(n, _)| n.clone());
     let keep = b.players.contains_key(&b.active).then(|| b.active.clone());
     let any = b.players.keys().min().cloned();
     let next = playing.or(keep).or(any).unwrap_or_default();
@@ -297,9 +260,7 @@ fn apply_active(app: &mut App) {
         crate::shell::media_changed(app);
         return;
     }
-    let Some(c) = app.svc.bus.session.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.session.clone() else { return };
     let p = c.with_proxy(name.as_str(), "/org/mpris/MediaPlayer2", T);
     if let Ok(id) = p.get::<String>(MPRIS, "Identity") {
         app.st.media.identity = id;
@@ -342,12 +303,7 @@ fn apply_props(app: &mut App, props: &PropMap, partial: bool) {
                         }
                     }
                     "mpris:artUrl" => m.art_url = v.as_str().unwrap_or("").to_string(),
-                    "mpris:length" => {
-                        m.length_us = v
-                            .as_i64()
-                            .or_else(|| v.as_u64().map(|x| x as i64))
-                            .unwrap_or(0)
-                    }
+                    "mpris:length" => m.length_us = v.as_i64().or_else(|| v.as_u64().map(|x| x as i64)).unwrap_or(0),
                     "mpris:trackid" => m.track_id = v.as_str().unwrap_or("").to_string(),
                     _ => {}
                 }
@@ -452,18 +408,14 @@ pub fn seek_rel(app: &mut App, secs: f64) {
 // ------------------------------------------------------------------ notifications server
 
 fn own_notifications(app: &mut App) {
-    let Some(c) = app.svc.bus.session.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.session.clone() else { return };
     match c.request_name(NOTIF_IFACE, true, true, true) {
         Ok(dbus::blocking::stdintf::org_freedesktop_dbus::RequestNameReply::PrimaryOwner)
         | Ok(dbus::blocking::stdintf::org_freedesktop_dbus::RequestNameReply::AlreadyOwner) => {
             app.st.notifs.owned = true;
         }
         _ => {
-            eprintln!(
-                "dshell: another notification daemon is running; dshell will not show notifications"
-            );
+            eprintln!("dshell: another notification daemon is running; dshell will not show notifications");
         }
     }
 }
@@ -481,18 +433,10 @@ const INTROSPECT: &str = r#"<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Obj
 fn notif_call(app: &mut App, c: &Rc<LocalConnection>, m: &Message) {
     let member = m.member().map(|s| s.to_string()).unwrap_or_default();
     let reply = match member.as_str() {
-        "GetCapabilities" => Some(m.method_return().append1(vec![
-            "actions",
-            "body",
-            "icon-static",
-            "persistence",
-            "body-hyperlinks",
-        ])),
-        "GetServerInformation" => Some(
-            m.method_return()
-                .append2("dshell", "DarkShadow")
-                .append2(env!("CARGO_PKG_VERSION"), "1.2"),
-        ),
+        "GetCapabilities" => {
+            Some(m.method_return().append1(vec!["actions", "body", "icon-static", "persistence", "body-hyperlinks"]))
+        }
+        "GetServerInformation" => Some(m.method_return().append2("dshell", "DarkShadow").append2(env!("CARGO_PKG_VERSION"), "1.2")),
         "Introspect" => Some(m.method_return().append1(INTROSPECT)),
         "CloseNotification" => {
             let id: u32 = m.read1().unwrap_or(0);
@@ -512,15 +456,11 @@ fn notif_call(app: &mut App, c: &Rc<LocalConnection>, m: &Message) {
 }
 
 fn unknown(m: &Message) -> Message {
-    m.error(
-        &"org.freedesktop.DBus.Error.UnknownMethod".into(),
-        c"unknown method",
-    )
+    m.error(&"org.freedesktop.DBus.Error.UnknownMethod".into(), c"unknown method")
 }
 
 fn hint_str(h: &PropMap, keys: &[&str]) -> Option<String> {
-    keys.iter()
-        .find_map(|k| h.get(*k).and_then(|v| v.0.as_str().map(str::to_string)))
+    keys.iter().find_map(|k| h.get(*k).and_then(|v| v.0.as_str().map(str::to_string)))
 }
 
 fn notify(app: &mut App, m: &Message) -> u32 {
@@ -568,10 +508,7 @@ fn notify(app: &mut App, m: &Message) -> u32 {
     let cap = app.cfg.notifications.history.max(5) as usize;
     n.list.truncate(cap);
     // the picture: raw pixels in the hints, a path, or the app icon
-    let raw = hints
-        .get("image-data")
-        .or_else(|| hints.get("image_data"))
-        .or_else(|| hints.get("icon_data"));
+    let raw = hints.get("image-data").or_else(|| hints.get("image_data")).or_else(|| hints.get("icon_data"));
     if let Some(img) = raw.and_then(|v| raw_image(&*v.0)) {
         if let Some(x) = app.st.notifs.list.iter_mut().find(|x| x.id == id) {
             x.image = Some(Rc::new(img));
@@ -594,16 +531,9 @@ fn raw_image(v: &dyn RefArg) -> Option<crate::gfx::Image> {
     let w = items[0].as_i64()? as u32;
     let h = items[1].as_i64()? as u32;
     let stride = items[2].as_i64()? as usize;
-    let alpha = items[3]
-        .as_i64()
-        .map(|x| x != 0)
-        .or_else(|| items[3].as_u64().map(|x| x != 0))
-        .unwrap_or(true);
+    let alpha = items[3].as_i64().map(|x| x != 0).or_else(|| items[3].as_u64().map(|x| x != 0)).unwrap_or(true);
     let chans = items[5].as_i64()? as usize;
-    let data: Vec<u8> = items[6]
-        .as_iter()?
-        .map(|b| b.as_u64().unwrap_or(0) as u8)
-        .collect();
+    let data: Vec<u8> = items[6].as_iter()?.map(|b| b.as_u64().unwrap_or(0) as u8).collect();
     if w == 0 || h == 0 || w > 4096 || h > 4096 {
         return None;
     }
@@ -614,25 +544,12 @@ fn raw_image(v: &dyn RefArg) -> Option<crate::gfx::Image> {
             if i + chans > data.len() {
                 return None;
             }
-            rgba.extend_from_slice(&[
-                data[i],
-                data[i + 1],
-                data[i + 2],
-                if alpha && chans == 4 {
-                    data[i + 3]
-                } else {
-                    255
-                },
-            ]);
+            rgba.extend_from_slice(&[data[i], data[i + 1], data[i + 2], if alpha && chans == 4 { data[i + 3] } else { 255 }]);
         }
     }
     let img = image::RgbaImage::from_raw(w, h, rgba)?;
     let side = 96;
-    let img = if w > side || h > side {
-        image::imageops::thumbnail(&img, side, side * h / w.max(1))
-    } else {
-        img
-    };
+    let img = if w > side || h > side { image::imageops::thumbnail(&img, side, side * h / w.max(1)) } else { img };
     crate::gfx::Image::from_rgba(img.width(), img.height(), img.into_raw())
 }
 
@@ -647,11 +564,7 @@ fn strip_markup(s: &str) -> String {
             _ => {}
         }
     }
-    out.replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&apos;", "'")
+    out.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'")
 }
 
 /// reason: 1 expired, 2 dismissed, 3 closed by a call
@@ -674,9 +587,7 @@ pub fn invoke(app: &mut App, id: u32, key: &str) {
 }
 
 fn emit(app: &mut App, sig: &str, id: u32, reason: Option<u32>, key: Option<&str>) {
-    let Some(c) = app.svc.bus.session.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.session.clone() else { return };
     if let Ok(m) = Message::new_signal(NOTIF_PATH, NOTIF_IFACE, sig) {
         let m = match (reason, key) {
             (Some(r), _) => m.append2(id, r),
@@ -695,24 +606,12 @@ fn on_system(app: &mut App, m: &Message) {
         let name = m.get1::<String>().unwrap_or_default();
         if !app.st.bt.busy.is_empty() {
             app.st.bt.busy.clear();
-            crate::actions::system_notice(
-                app,
-                "Bluetooth",
-                if name.is_empty() {
-                    "The device did not connect."
-                } else {
-                    &name
-                },
-            );
+            crate::actions::system_notice(app, "Bluetooth", if name.is_empty() { "The device did not connect." } else { &name });
             arm_bt(app);
         }
         if !app.st.net.connecting.is_empty() {
             let ssid = std::mem::take(&mut app.st.net.connecting);
-            crate::actions::system_notice(
-                app,
-                "Wi-Fi",
-                &format!("Could not connect to {ssid}. {name}"),
-            );
+            crate::actions::system_notice(app, "Wi-Fi", &format!("Could not connect to {ssid}. {name}"));
         }
         return;
     }
@@ -725,9 +624,7 @@ fn on_system(app: &mut App, m: &Message) {
     let path = m.path().map(|p| p.to_string()).unwrap_or_default();
     if path.starts_with("/org/freedesktop/NetworkManager") {
         arm_net(app);
-    } else if path.starts_with("/org/bluez")
-        || m.interface().as_deref() == Some("org.freedesktop.DBus.ObjectManager")
-    {
+    } else if path.starts_with("/org/bluez") || m.interface().as_deref() == Some("org.freedesktop.DBus.ObjectManager") {
         arm_bt(app);
     } else if path.starts_with("/org/freedesktop/UPower") {
         refresh_power(app);
@@ -739,14 +636,11 @@ fn arm_net(app: &mut App) {
         return;
     }
     app.svc.bus.net_armed = true;
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_millis(150)),
-        |_, _, app: &mut App| {
-            app.svc.bus.net_armed = false;
-            refresh_net(app);
-            TimeoutAction::Drop
-        },
-    );
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(150)), |_, _, app: &mut App| {
+        app.svc.bus.net_armed = false;
+        refresh_net(app);
+        TimeoutAction::Drop
+    });
 }
 
 fn arm_bt(app: &mut App) {
@@ -754,46 +648,25 @@ fn arm_bt(app: &mut App) {
         return;
     }
     app.svc.bus.bt_armed = true;
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_millis(150)),
-        |_, _, app: &mut App| {
-            app.svc.bus.bt_armed = false;
-            refresh_bt(app);
-            TimeoutAction::Drop
-        },
-    );
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(150)), |_, _, app: &mut App| {
+        app.svc.bus.bt_armed = false;
+        refresh_bt(app);
+        TimeoutAction::Drop
+    });
 }
 
 pub fn refresh_net(app: &mut App) {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return;
-    };
-    let nm = c.with_proxy(
-        "org.freedesktop.NetworkManager",
-        "/org/freedesktop/NetworkManager",
-        T,
-    );
+    let Some(c) = app.svc.bus.system.clone() else { return };
+    let nm = c.with_proxy("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", T);
     let Ok(props) = nm.get_all("org.freedesktop.NetworkManager") else {
         app.st.net.ok = false;
         return;
     };
     let net = &mut app.st.net;
     net.ok = true;
-    net.wifi_on = props
-        .get("WirelessEnabled")
-        .and_then(|v| v.0.as_u64())
-        .map(|x| x != 0)
-        .unwrap_or(false);
-    let ptype = props
-        .get("PrimaryConnectionType")
-        .and_then(|v| v.0.as_str())
-        .unwrap_or("")
-        .to_string();
-    let primary = props
-        .get("PrimaryConnection")
-        .and_then(|v| v.0.as_str())
-        .unwrap_or("/")
-        .to_string();
+    net.wifi_on = props.get("WirelessEnabled").and_then(|v| v.0.as_u64()).map(|x| x != 0).unwrap_or(false);
+    let ptype = props.get("PrimaryConnectionType").and_then(|v| v.0.as_str()).unwrap_or("").to_string();
+    let primary = props.get("PrimaryConnection").and_then(|v| v.0.as_str()).unwrap_or("/").to_string();
     net.kind = match ptype.as_str() {
         "802-11-wireless" => NetKind::Wifi,
         "802-3-ethernet" | "bridge" | "bond" | "vlan" => NetKind::Wired,
@@ -805,10 +678,7 @@ pub fn refresh_net(app: &mut App) {
         if let Ok(id) = ac.get::<String>("org.freedesktop.NetworkManager.Connection.Active", "Id") {
             app.st.net.ssid = id;
         }
-        if let Ok(ap) = ac.get::<Path>(
-            "org.freedesktop.NetworkManager.Connection.Active",
-            "SpecificObject",
-        ) {
+        if let Ok(ap) = ac.get::<Path>("org.freedesktop.NetworkManager.Connection.Active", "SpecificObject") {
             let ap = ap.to_string();
             let p = c.with_proxy("org.freedesktop.NetworkManager", ap.as_str(), T);
             if let Ok(s) = p.get::<u8>("org.freedesktop.NetworkManager.AccessPoint", "Strength") {
@@ -827,20 +697,12 @@ pub fn refresh_net(app: &mut App) {
 }
 
 fn wifi_device(c: &LocalConnection) -> Option<String> {
-    let nm = c.with_proxy(
-        "org.freedesktop.NetworkManager",
-        "/org/freedesktop/NetworkManager",
-        T,
-    );
-    let (devs,): (Vec<Path<'static>>,) = nm
-        .method_call("org.freedesktop.NetworkManager", "GetDevices", ())
-        .ok()?;
+    let nm = c.with_proxy("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", T);
+    let (devs,): (Vec<Path<'static>>,) = nm.method_call("org.freedesktop.NetworkManager", "GetDevices", ()).ok()?;
     devs.into_iter()
         .find(|d| {
             let p = c.with_proxy("org.freedesktop.NetworkManager", d.clone(), T);
-            p.get::<u32>("org.freedesktop.NetworkManager.Device", "DeviceType")
-                .map(|t| t == 2)
-                .unwrap_or(false)
+            p.get::<u32>("org.freedesktop.NetworkManager.Device", "DeviceType").map(|t| t == 2).unwrap_or(false)
         })
         .map(|d| d.to_string())
 }
@@ -848,32 +710,15 @@ fn wifi_device(c: &LocalConnection) -> Option<String> {
 /// Saved Wi-Fi connections: ssid -> connection path.
 fn saved_wifi(c: &LocalConnection) -> HashMap<String, String> {
     let mut out = HashMap::new();
-    let s = c.with_proxy(
-        "org.freedesktop.NetworkManager",
-        "/org/freedesktop/NetworkManager/Settings",
-        T,
-    );
-    let r: Result<(Vec<Path<'static>>,), _> = s.method_call(
-        "org.freedesktop.NetworkManager.Settings",
-        "ListConnections",
-        (),
-    );
+    let s = c.with_proxy("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager/Settings", T);
+    let r: Result<(Vec<Path<'static>>,), _> = s.method_call("org.freedesktop.NetworkManager.Settings", "ListConnections", ());
     if let Ok((list,)) = r {
         for p in list {
             let cp = c.with_proxy("org.freedesktop.NetworkManager", p.clone(), T);
-            let r: Result<(HashMap<String, PropMap>,), _> = cp.method_call(
-                "org.freedesktop.NetworkManager.Settings.Connection",
-                "GetSettings",
-                (),
-            );
+            let r: Result<(HashMap<String, PropMap>,), _> = cp.method_call("org.freedesktop.NetworkManager.Settings.Connection", "GetSettings", ());
             if let Ok((set,)) = r
                 && let Some(w) = set.get("802-11-wireless")
-                && let Some(ssid) = w.get("ssid").and_then(|v| {
-                    v.0.as_iter().map(|it| {
-                        it.filter_map(|b| b.as_u64().map(|x| x as u8))
-                            .collect::<Vec<u8>>()
-                    })
-                })
+                && let Some(ssid) = w.get("ssid").and_then(|v| v.0.as_iter().map(|it| it.filter_map(|b| b.as_u64().map(|x| x as u8)).collect::<Vec<u8>>()))
             {
                 out.insert(String::from_utf8_lossy(&ssid).into_owned(), p.to_string());
             }
@@ -884,37 +729,20 @@ fn saved_wifi(c: &LocalConnection) -> HashMap<String, String> {
 
 /// The networks in reach, strongest first (one entry per name).
 pub fn wifi_list(app: &mut App) {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.system.clone() else { return };
     let Some(dev) = wifi_device(&c) else { return };
     let d = c.with_proxy("org.freedesktop.NetworkManager", dev.as_str(), T);
-    let r: Result<(Vec<Path<'static>>,), _> = d.method_call(
-        "org.freedesktop.NetworkManager.Device.Wireless",
-        "GetAllAccessPoints",
-        (),
-    );
+    let r: Result<(Vec<Path<'static>>,), _> = d.method_call("org.freedesktop.NetworkManager.Device.Wireless", "GetAllAccessPoints", ());
     let saved = saved_wifi(&c);
-    let active_ap = d
-        .get::<Path>(
-            "org.freedesktop.NetworkManager.Device.Wireless",
-            "ActiveAccessPoint",
-        )
-        .map(|p| p.to_string())
-        .unwrap_or_default();
+    let active_ap = d.get::<Path>("org.freedesktop.NetworkManager.Device.Wireless", "ActiveAccessPoint").map(|p| p.to_string()).unwrap_or_default();
     let mut aps: Vec<crate::state::Ap> = Vec::new();
     if let Ok((list,)) = r {
         for p in list {
             let ap = c.with_proxy("org.freedesktop.NetworkManager", p.clone(), T);
-            let Ok(props) = ap.get_all("org.freedesktop.NetworkManager.AccessPoint") else {
-                continue;
-            };
+            let Ok(props) = ap.get_all("org.freedesktop.NetworkManager.AccessPoint") else { continue };
             let ssid: Vec<u8> = props
                 .get("Ssid")
-                .and_then(|v| {
-                    v.0.as_iter()
-                        .map(|it| it.filter_map(|b| b.as_u64().map(|x| x as u8)).collect())
-                })
+                .and_then(|v| v.0.as_iter().map(|it| it.filter_map(|b| b.as_u64().map(|x| x as u8)).collect()))
                 .unwrap_or_default();
             let ssid = String::from_utf8_lossy(&ssid).into_owned();
             if ssid.is_empty() {
@@ -932,37 +760,18 @@ pub fn wifi_list(app: &mut App) {
                 e.active |= active;
                 continue;
             }
-            aps.push(crate::state::Ap {
-                saved: saved.contains_key(&ssid),
-                ssid,
-                strength,
-                secured,
-                active,
-                path: p.to_string(),
-            });
+            aps.push(crate::state::Ap { saved: saved.contains_key(&ssid), ssid, strength, secured, active, path: p.to_string() });
         }
     }
-    aps.sort_by(|a, b| {
-        b.active
-            .cmp(&a.active)
-            .then(b.saved.cmp(&a.saved))
-            .then(b.strength.cmp(&a.strength))
-    });
+    aps.sort_by(|a, b| b.active.cmp(&a.active).then(b.saved.cmp(&a.saved)).then(b.strength.cmp(&a.strength)));
     app.st.net.aps = aps;
     app.mark(topic::NET);
 }
 
 pub fn wifi_scan(app: &mut App) {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.system.clone() else { return };
     let Some(dev) = wifi_device(&c) else { return };
-    if let Ok(m) = Message::new_method_call(
-        "org.freedesktop.NetworkManager",
-        dev.as_str(),
-        "org.freedesktop.NetworkManager.Device.Wireless",
-        "RequestScan",
-    ) {
+    if let Ok(m) = Message::new_method_call("org.freedesktop.NetworkManager", dev.as_str(), "org.freedesktop.NetworkManager.Device.Wireless", "RequestScan") {
         let m = m.append1(PropMap::new());
         let _ = c.channel().send(m);
         c.channel().flush();
@@ -972,25 +781,16 @@ pub fn wifi_scan(app: &mut App) {
 
 /// Connect to a network: its saved connection, or a new one (with the password for secured ones).
 pub fn wifi_connect(app: &mut App, ssid: &str, password: Option<&str>) {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.system.clone() else { return };
     let Some(dev) = wifi_device(&c) else { return };
-    let Some(ap) = app.st.net.aps.iter().find(|a| a.ssid == ssid).cloned() else {
-        return;
-    };
+    let Some(ap) = app.st.net.aps.iter().find(|a| a.ssid == ssid).cloned() else { return };
     let saved = saved_wifi(&c);
     let dev_path = Path::new(dev.clone()).unwrap();
     let ap_path = Path::new(ap.path.clone()).unwrap_or_else(|_| Path::new("/").unwrap());
     let msg = if let (Some(conn), None) = (saved.get(ssid), password) {
-        Message::new_method_call(
-            "org.freedesktop.NetworkManager",
-            "/org/freedesktop/NetworkManager",
-            "org.freedesktop.NetworkManager",
-            "ActivateConnection",
-        )
-        .ok()
-        .map(|m| m.append3(Path::new(conn.clone()).unwrap(), dev_path, ap_path))
+        Message::new_method_call("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "ActivateConnection")
+            .ok()
+            .map(|m| m.append3(Path::new(conn.clone()).unwrap(), dev_path, ap_path))
     } else {
         let mut set: HashMap<&str, PropMap> = HashMap::new();
         if let Some(pw) = password {
@@ -999,14 +799,9 @@ pub fn wifi_connect(app: &mut App, ssid: &str, password: Option<&str>) {
             sec.insert("psk".into(), Variant(Box::new(pw.to_string())));
             set.insert("802-11-wireless-security", sec);
         }
-        Message::new_method_call(
-            "org.freedesktop.NetworkManager",
-            "/org/freedesktop/NetworkManager",
-            "org.freedesktop.NetworkManager",
-            "AddAndActivateConnection",
-        )
-        .ok()
-        .map(|m| m.append3(set, dev_path, ap_path))
+        Message::new_method_call("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "AddAndActivateConnection")
+            .ok()
+            .map(|m| m.append3(set, dev_path, ap_path))
     };
     if let Some(m) = msg {
         let _ = c.channel().send(m);
@@ -1017,45 +812,25 @@ pub fn wifi_connect(app: &mut App, ssid: &str, password: Option<&str>) {
 }
 
 pub fn wifi_disconnect(app: &mut App) {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.system.clone() else { return };
     if let Some(dev) = wifi_device(&c) {
-        call_nowait(
-            &c,
-            "org.freedesktop.NetworkManager",
-            &dev,
-            "org.freedesktop.NetworkManager.Device",
-            "Disconnect",
-        );
+        call_nowait(&c, "org.freedesktop.NetworkManager", &dev, "org.freedesktop.NetworkManager.Device", "Disconnect");
     }
 }
 
 pub fn set_wifi(app: &mut App, on: bool) {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return;
-    };
-    let nm = c.with_proxy(
-        "org.freedesktop.NetworkManager",
-        "/org/freedesktop/NetworkManager",
-        T,
-    );
+    let Some(c) = app.svc.bus.system.clone() else { return };
+    let nm = c.with_proxy("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", T);
     let _ = nm.set("org.freedesktop.NetworkManager", "WirelessEnabled", on);
     app.st.net.wifi_on = on;
     app.mark(topic::NET);
 }
 
 pub fn refresh_bt(app: &mut App) {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.system.clone() else { return };
     let p = c.with_proxy("org.bluez", "/", T);
     type Objs = HashMap<Path<'static>, HashMap<String, PropMap>>;
-    let r: Result<(Objs,), _> = p.method_call(
-        "org.freedesktop.DBus.ObjectManager",
-        "GetManagedObjects",
-        (),
-    );
+    let r: Result<(Objs,), _> = p.method_call("org.freedesktop.DBus.ObjectManager", "GetManagedObjects", ());
     let bt = &mut app.st.bt;
     bt.present = false;
     bt.powered = false;
@@ -1072,11 +847,7 @@ pub fn refresh_bt(app: &mut App) {
             }
             if let Some(d) = ifs.get("org.bluez.Device1") {
                 let flag = |k: &str| d.get(k).and_then(|v| v.0.as_u64()).unwrap_or(0) != 0;
-                let name = d
-                    .get("Alias")
-                    .and_then(|v| v.0.as_str())
-                    .unwrap_or("Device")
-                    .to_string();
+                let name = d.get("Alias").and_then(|v| v.0.as_str()).unwrap_or("Device").to_string();
                 if flag("Connected") {
                     bt.connected.push(name.clone());
                 }
@@ -1086,18 +857,10 @@ pub fn refresh_bt(app: &mut App) {
                     bt.devices.push(crate::state::BtDev {
                         path: path.to_string(),
                         name,
-                        icon: d
-                            .get("Icon")
-                            .and_then(|v| v.0.as_str())
-                            .unwrap_or("")
-                            .to_string(),
+                        icon: d.get("Icon").and_then(|v| v.0.as_str()).unwrap_or("").to_string(),
                         paired: flag("Paired"),
                         connected: flag("Connected"),
-                        battery: ifs
-                            .get("org.bluez.Battery1")
-                            .and_then(|b| b.get("Percentage"))
-                            .and_then(|v| v.0.as_u64())
-                            .map(|x| x as u8),
+                        battery: ifs.get("org.bluez.Battery1").and_then(|b| b.get("Percentage")).and_then(|v| v.0.as_u64()).map(|x| x as u8),
                     });
                 }
             }
@@ -1114,12 +877,7 @@ pub fn refresh_bt(app: &mut App) {
         app.st.bt.busy.clear();
     }
     // connected first, then paired, then the rest; by name
-    app.st.bt.devices.sort_by(|a, b| {
-        b.connected
-            .cmp(&a.connected)
-            .then(b.paired.cmp(&a.paired))
-            .then(a.name.cmp(&b.name))
-    });
+    app.st.bt.devices.sort_by(|a, b| b.connected.cmp(&a.connected).then(b.paired.cmp(&a.paired)).then(a.name.cmp(&b.name)));
     app.mark(topic::BT);
 }
 
@@ -1132,12 +890,8 @@ fn call_nowait(c: &LocalConnection, dest: &str, path: &str, iface: &str, method:
 }
 
 pub fn bt_device(app: &mut App, path: &str) {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return;
-    };
-    let Some(d) = app.st.bt.devices.iter().find(|d| d.path == path).cloned() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.system.clone() else { return };
+    let Some(d) = app.st.bt.devices.iter().find(|d| d.path == path).cloned() else { return };
     if !app.st.bt.powered {
         set_bt(app, true);
     }
@@ -1156,30 +910,14 @@ pub fn bt_device(app: &mut App, path: &str) {
 }
 
 pub fn bt_scan(app: &mut App, on: bool) {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.system.clone() else { return };
     let p = c.with_proxy("org.bluez", "/", T);
     type Objs = HashMap<Path<'static>, HashMap<String, PropMap>>;
-    let r: Result<(Objs,), _> = p.method_call(
-        "org.freedesktop.DBus.ObjectManager",
-        "GetManagedObjects",
-        (),
-    );
+    let r: Result<(Objs,), _> = p.method_call("org.freedesktop.DBus.ObjectManager", "GetManagedObjects", ());
     if let Ok((objs,)) = r {
         for (path, ifs) in objs {
             if ifs.contains_key("org.bluez.Adapter1") {
-                call_nowait(
-                    &c,
-                    "org.bluez",
-                    &path,
-                    "org.bluez.Adapter1",
-                    if on {
-                        "StartDiscovery"
-                    } else {
-                        "StopDiscovery"
-                    },
-                );
+                call_nowait(&c, "org.bluez", &path, "org.bluez.Adapter1", if on { "StartDiscovery" } else { "StopDiscovery" });
             }
         }
     }
@@ -1188,16 +926,10 @@ pub fn bt_scan(app: &mut App, on: bool) {
 }
 
 pub fn set_bt(app: &mut App, on: bool) {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return;
-    };
+    let Some(c) = app.svc.bus.system.clone() else { return };
     let p = c.with_proxy("org.bluez", "/", T);
     type Objs = HashMap<Path<'static>, HashMap<String, PropMap>>;
-    let r: Result<(Objs,), _> = p.method_call(
-        "org.freedesktop.DBus.ObjectManager",
-        "GetManagedObjects",
-        (),
-    );
+    let r: Result<(Objs,), _> = p.method_call("org.freedesktop.DBus.ObjectManager", "GetManagedObjects", ());
     if let Ok((objs,)) = r {
         for (path, ifs) in objs {
             if ifs.contains_key("org.bluez.Adapter1") {
@@ -1214,34 +946,17 @@ pub fn set_bt(app: &mut App, on: bool) {
 }
 
 pub fn refresh_power(app: &mut App) {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return;
-    };
-    let p = c.with_proxy(
-        "org.freedesktop.UPower",
-        "/org/freedesktop/UPower/devices/DisplayDevice",
-        T,
-    );
-    let Ok(props) = p.get_all("org.freedesktop.UPower.Device") else {
-        return;
-    };
+    let Some(c) = app.svc.bus.system.clone() else { return };
+    let p = c.with_proxy("org.freedesktop.UPower", "/org/freedesktop/UPower/devices/DisplayDevice", T);
+    let Ok(props) = p.get_all("org.freedesktop.UPower.Device") else { return };
     let up = c.with_proxy("org.freedesktop.UPower", "/org/freedesktop/UPower", T);
-    let on_batt = up
-        .get::<bool>("org.freedesktop.UPower", "OnBattery")
-        .unwrap_or(false);
+    let on_batt = up.get::<bool>("org.freedesktop.UPower", "OnBattery").unwrap_or(false);
     let b = &mut app.st.batt;
     let old_plug = b.plugged;
     let was_present = b.present;
-    b.present = props
-        .get("IsPresent")
-        .and_then(|v| v.0.as_u64())
-        .map(|x| x != 0)
-        .unwrap_or(false)
+    b.present = props.get("IsPresent").and_then(|v| v.0.as_u64()).map(|x| x != 0).unwrap_or(false)
         && props.get("Type").and_then(|v| v.0.as_u64()).unwrap_or(0) == 2;
-    b.pct = props
-        .get("Percentage")
-        .and_then(|v| v.0.as_f64())
-        .unwrap_or(0.0) as f32;
+    b.pct = props.get("Percentage").and_then(|v| v.0.as_f64()).unwrap_or(0.0) as f32;
     let state = props.get("State").and_then(|v| v.0.as_u64()).unwrap_or(0);
     b.charging = state == 1;
     b.plugged = !on_batt;
@@ -1254,19 +969,9 @@ pub fn refresh_power(app: &mut App) {
 
 /// logind sets the backlight without root (what brightnessctl does too).
 pub fn set_backlight(app: &mut App, device: &str, value: u32) -> bool {
-    let Some(c) = app.svc.bus.system.clone() else {
-        return false;
-    };
-    let p = c.with_proxy(
-        "org.freedesktop.login1",
-        "/org/freedesktop/login1/session/auto",
-        T,
-    );
-    let r: Result<(), _> = p.method_call(
-        "org.freedesktop.login1.Session",
-        "SetBrightness",
-        ("backlight", device, value),
-    );
+    let Some(c) = app.svc.bus.system.clone() else { return false };
+    let p = c.with_proxy("org.freedesktop.login1", "/org/freedesktop/login1/session/auto", T);
+    let r: Result<(), _> = p.method_call("org.freedesktop.login1.Session", "SetBrightness", ("backlight", device, value));
     r.is_ok()
 }
 

@@ -76,14 +76,7 @@ fn mmap_file(path: &str) -> Option<&'static [u8]> {
     }
     // SAFETY: a read-only private mapping of a font file that lives for the whole process.
     unsafe {
-        let p = libc::mmap(
-            std::ptr::null_mut(),
-            len,
-            libc::PROT_READ,
-            libc::MAP_PRIVATE,
-            file.as_raw_fd(),
-            0,
-        );
+        let p = libc::mmap(std::ptr::null_mut(), len, libc::PROT_READ, libc::MAP_PRIVATE, file.as_raw_fd(), 0);
         if p == libc::MAP_FAILED {
             return None;
         }
@@ -104,21 +97,12 @@ impl Fonts {
             k.push(em_factor(&f));
             faces.push(f);
         }
-        Fonts {
-            faces,
-            k,
-            fallback: None,
-            fallback_k: 1.0,
-            fallback_tried: false,
-            cache: HashMap::new(),
-        }
+        Fonts { faces, k, fallback: None, fallback_k: 1.0, fallback_tried: false, cache: HashMap::new() }
     }
 
     fn load_fallback(&mut self) {
         self.fallback_tried = true;
-        let out = std::process::Command::new("fc-match")
-            .args(["-f", "%{file}", "sans-serif"])
-            .output();
+        let out = std::process::Command::new("fc-match").args(["-f", "%{file}", "sans-serif"]).output();
         if let Ok(o) = out {
             let path = String::from_utf8_lossy(&o.stdout).to_string();
             if let Some(data) = mmap_file(path.trim())
@@ -156,15 +140,15 @@ impl Fonts {
         f.as_scaled(PxScale::from(size * self.k[face as usize]))
     }
 
+
+
     /// Height of capital letters / digits (for centring numbers optically).
     pub fn cap_height(&self, face: Face, size: f32) -> f32 {
         let f = &self.faces[face as usize];
         let s = self.scaled(face, false, size);
         let id = f.glyph_id('H');
         let g = id.with_scale(s.scale());
-        f.outline_glyph(g)
-            .map(|o| -o.px_bounds().min.y)
-            .unwrap_or(s.ascent() * 0.72)
+        f.outline_glyph(g).map(|o| -o.px_bounds().min.y).unwrap_or(s.ascent() * 0.72)
     }
 
     pub fn width(&mut self, s: &str, face: Face, size: f32) -> f32 {
@@ -205,14 +189,7 @@ impl Fonts {
     }
 
     /// Lay out `s` with its baseline at y=0 starting at x=0 and call `f` for every glyph bitmap.
-    pub fn layout(
-        &mut self,
-        s: &str,
-        face: Face,
-        size: f32,
-        x0: f32,
-        mut f: impl FnMut(f32, &Glyph),
-    ) -> f32 {
+    pub fn layout(&mut self, s: &str, face: Face, size: f32, x0: f32, mut f: impl FnMut(f32, &Glyph)) -> f32 {
         let mut x = x0;
         let mut prev: Option<(bool, GlyphId)> = None;
         let size_q = (size * 4.0).round().clamp(1.0, 65535.0) as u16;
@@ -230,13 +207,7 @@ impl Fonts {
             if !c.is_whitespace() {
                 let fx = x.floor();
                 let sub = ((x - fx) * 4.0).floor().clamp(0.0, 3.0) as u8;
-                let key = Key {
-                    face: face as u8,
-                    fb,
-                    id: id.0,
-                    size: size_q,
-                    sub,
-                };
+                let key = Key { face: face as u8, fb, id: id.0, size: size_q, sub };
                 if !self.cache.contains_key(&key) {
                     if self.cache.len() > 3000 {
                         self.cache.clear();
@@ -274,13 +245,7 @@ impl Fonts {
                 cov[(y * w + x) as usize] = (c.clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
             }
         });
-        Some(Glyph {
-            left: b.min.x as i32,
-            top: b.min.y as i32,
-            w,
-            h,
-            cov,
-        })
+        Some(Glyph { left: b.min.x as i32, top: b.min.y as i32, w, h, cov })
     }
 
     pub fn trim(&mut self) {

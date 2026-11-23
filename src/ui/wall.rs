@@ -90,10 +90,7 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, id: u32) -> Out {
         }
         return Out::default();
     }
-    let t = w
-        .since
-        .map(|s| crate::anim::progress(s, ctx.now, FADE_MS))
-        .unwrap_or(1.0);
+    let t = w.since.map(|s| crate::anim::progress(s, ctx.now, FADE_MS)).unwrap_or(1.0);
     let eased = crate::anim::std_ease(t);
     let data = cv.pm.data_mut();
     match &w.prev {
@@ -124,10 +121,5 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, id: u32) -> Out {
         w.had = true;
         w.requested = false;
     }
-    Out {
-        anim,
-        input: None,
-        done: false,
-        damage: None,
-    }
+    Out { anim, input: None, done: false, damage: None }
 }

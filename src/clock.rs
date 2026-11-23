@@ -19,10 +19,7 @@ pub fn now() -> Tm {
 }
 
 pub fn unix() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
 
 pub fn from_unix(t: i64) -> Tm {
@@ -64,9 +61,7 @@ pub fn first_wday(t: &Tm) -> u32 {
 
 /// Seconds until the next whole minute (or second).
 pub fn until_next(seconds: bool) -> std::time::Duration {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
     let ms = now.as_millis() as u64;
     let period = if seconds { 1000 } else { 60_000 };
     std::time::Duration::from_millis(period - ms % period + 5)

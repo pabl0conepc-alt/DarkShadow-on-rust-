@@ -56,9 +56,7 @@ pub fn start(app: &mut App) {
 }
 
 fn connect_events(app: &mut App) {
-    let Some(dir) = app.svc.hypr.dir.clone() else {
-        return;
-    };
+    let Some(dir) = app.svc.hypr.dir.clone() else { return };
     let Ok(stream) = UnixStream::connect(dir.join(".socket2.sock")) else {
         retry(app);
         return;
@@ -82,12 +80,10 @@ fn connect_events(app: &mut App) {
                         let l = String::from_utf8_lossy(&line);
                         let ev = l.split(">>").next().unwrap_or("");
                         match ev {
-                            "workspace" | "workspacev2" | "focusedmon" | "focusedmonv2"
-                            | "activewindow" | "activewindowv2" | "openwindow" | "closewindow"
-                            | "movewindow" | "movewindowv2" | "createworkspace"
-                            | "createworkspacev2" | "destroyworkspace" | "destroyworkspacev2"
-                            | "fullscreen" | "windowtitle" | "windowtitlev2"
-                            | "changefloatingmode" | "moveworkspace" | "moveworkspacev2"
+                            "workspace" | "workspacev2" | "focusedmon" | "focusedmonv2" | "activewindow" | "activewindowv2"
+                            | "openwindow" | "closewindow" | "movewindow" | "movewindowv2" | "createworkspace"
+                            | "createworkspacev2" | "destroyworkspace" | "destroyworkspacev2" | "fullscreen"
+                            | "windowtitle" | "windowtitlev2" | "changefloatingmode" | "moveworkspace" | "moveworkspacev2"
                             | "renameworkspace" => want = true,
                             "activelayout" => {
                                 if let Some(v) = l.trim_end().split(">>").nth(1)
@@ -104,9 +100,7 @@ fn connect_events(app: &mut App) {
                         arm_refresh(app);
                     }
                 }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    return Ok(PostAction::Continue);
-                }
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => return Ok(PostAction::Continue),
                 Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
                 Err(_) => {
                     retry(app);
@@ -118,17 +112,14 @@ fn connect_events(app: &mut App) {
 }
 
 fn retry(app: &mut App) {
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_secs(2)),
-        |_, _, app: &mut App| {
-            if sock_dir().is_some() {
-                app.svc.hypr.dir = sock_dir();
-                connect_events(app);
-                refresh(app);
-            }
-            TimeoutAction::Drop
-        },
-    );
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_secs(2)), |_, _, app: &mut App| {
+        if sock_dir().is_some() {
+            app.svc.hypr.dir = sock_dir();
+            connect_events(app);
+            refresh(app);
+        }
+        TimeoutAction::Drop
+    });
 }
 
 /// Events come in bursts (a window opening sends five): answer them once.
@@ -137,28 +128,18 @@ fn arm_refresh(app: &mut App) {
         return;
     }
     app.svc.hypr.refresh_armed = true;
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_millis(12)),
-        |_, _, app: &mut App| {
-            app.svc.hypr.refresh_armed = false;
-            refresh(app);
-            TimeoutAction::Drop
-        },
-    );
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(12)), |_, _, app: &mut App| {
+        app.svc.hypr.refresh_armed = false;
+        refresh(app);
+        TimeoutAction::Drop
+    });
 }
 
 pub fn refresh(app: &mut App) {
-    let wss: Option<Value> =
-        request(app, "j/workspaces").and_then(|s| serde_json::from_str(&s).ok());
-    let aw: Option<Value> =
-        request(app, "j/activeworkspace").and_then(|s| serde_json::from_str(&s).ok());
-    let win: Option<Value> =
-        request(app, "j/activewindow").and_then(|s| serde_json::from_str(&s).ok());
-    let clients: Option<Value> = if app.cfg.dock.enabled {
-        request(app, "j/clients").and_then(|s| serde_json::from_str(&s).ok())
-    } else {
-        None
-    };
+    let wss: Option<Value> = request(app, "j/workspaces").and_then(|s| serde_json::from_str(&s).ok());
+    let aw: Option<Value> = request(app, "j/activeworkspace").and_then(|s| serde_json::from_str(&s).ok());
+    let win: Option<Value> = request(app, "j/activewindow").and_then(|s| serde_json::from_str(&s).ok());
+    let clients: Option<Value> = if app.cfg.dock.enabled { request(app, "j/clients").and_then(|s| serde_json::from_str(&s).ok()) } else { None };
     let mut list = Vec::new();
     if let Some(Value::Array(a)) = wss {
         for w in a {
@@ -166,11 +147,7 @@ pub fn refresh(app: &mut App) {
             if id <= 0 {
                 continue; // special workspaces
             }
-            list.push(Ws {
-                id,
-                name: w["name"].as_str().unwrap_or("").to_string(),
-                windows: w["windows"].as_u64().unwrap_or(0) as u32,
-            });
+            list.push(Ws { id, name: w["name"].as_str().unwrap_or("").to_string(), windows: w["windows"].as_u64().unwrap_or(0) as u32 });
         }
     }
     list.sort_by_key(|w| w.id);

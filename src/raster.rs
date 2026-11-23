@@ -33,11 +33,7 @@ fn over(d: u32, s: u32) -> u32 {
 /// Blend `c` (premultiplied, 0..255) at coverage `k` (0..=256) over a pixel.
 #[inline(always)]
 fn blend(d: &mut [u8], c: [u32; 4], k: u32) {
-    let s = if k >= 256 {
-        pack(c)
-    } else {
-        scale(pack(c), k.min(255))
-    };
+    let s = if k >= 256 { pack(c) } else { scale(pack(c), k.min(255)) };
     if s >> 24 == 0 {
         return;
     }
@@ -136,11 +132,7 @@ impl Target<'_> {
             } else {
                 0.0
             };
-            let dx = if d > 0.0 {
-                r - (r * r - d * d).max(0.0).sqrt()
-            } else {
-                0.0
-            };
+            let dx = if d > 0.0 { r - (r * r - d * d).max(0.0).sqrt() } else { 0.0 };
             Some((x + dx, x1 - dx))
         };
         for j in jy0..jy1 {
@@ -188,27 +180,11 @@ impl Target<'_> {
     /// A ring stroke whose radius wobbles: R(t) = r + amp * sin(n t + phase), from `start` over `sweep`
     /// (radians, clockwise, 0 = 3 o'clock), with round ends. amp = 0 gives a plain ring / arc.
     #[allow(clippy::too_many_arguments)]
-    pub fn polar_stroke(
-        &mut self,
-        cx: f32,
-        cy: f32,
-        r: f32,
-        amp: f32,
-        n: f32,
-        phase: f32,
-        start: f32,
-        sweep: f32,
-        width: f32,
-        c: [u32; 4],
-    ) {
+    pub fn polar_stroke(&mut self, cx: f32, cy: f32, r: f32, amp: f32, n: f32, phase: f32, start: f32, sweep: f32, width: f32, c: [u32; 4]) {
         if sweep.abs() < 0.0005 || c[3] == 0 || r <= 0.0 {
             return;
         }
-        let (start, sweep) = if sweep < 0.0 {
-            (start + sweep, -sweep)
-        } else {
-            (start, sweep)
-        };
+        let (start, sweep) = if sweep < 0.0 { (start + sweep, -sweep) } else { (start, sweep) };
         let full = sweep >= TAU - 1e-4;
         let hw = width / 2.0;
         let outer = r + amp.abs() + hw + 1.5;
@@ -242,16 +218,8 @@ impl Target<'_> {
                 continue;
             }
             let xo = (outer * outer - dy * dy).max(0.0).sqrt();
-            let xi = if dy.abs() < inner {
-                (inner * inner - dy * dy).max(0.0).sqrt()
-            } else {
-                -1.0
-            };
-            let ranges: [(f32, f32); 2] = if xi > 0.0 {
-                [(cx - xo, cx - xi), (cx + xi, cx + xo)]
-            } else {
-                [(cx - xo, cx + xo), (0.0, -1.0)]
-            };
+            let xi = if dy.abs() < inner { (inner * inner - dy * dy).max(0.0).sqrt() } else { -1.0 };
+            let ranges: [(f32, f32); 2] = if xi > 0.0 { [(cx - xo, cx - xi), (cx + xi, cx + xo)] } else { [(cx - xo, cx + xo), (0.0, -1.0)] };
             for (a, b) in ranges {
                 if b < a {
                     continue;
@@ -292,17 +260,7 @@ impl Target<'_> {
 
     /// A horizontal wave (or a straight line when amp = 0) from x0 to x1 with round ends.
     #[allow(clippy::too_many_arguments)]
-    pub fn wave_h(
-        &mut self,
-        x0: f32,
-        x1: f32,
-        y: f32,
-        amp: f32,
-        wavelength: f32,
-        phase: f32,
-        width: f32,
-        c: [u32; 4],
-    ) {
+    pub fn wave_h(&mut self, x0: f32, x1: f32, y: f32, amp: f32, wavelength: f32, phase: f32, width: f32, c: [u32; 4]) {
         if x1 < x0 || c[3] == 0 {
             return;
         }
@@ -341,16 +299,7 @@ impl Target<'_> {
 
     /// A picture (already scaled to the mask's size) turned by `rot` around its centre, clipped by a coverage
     /// mask, at device (x0, y0). Bilinear sampling in fixed point; `alpha` 0..=256.
-    pub fn rotated(
-        &mut self,
-        src: &tiny_skia::Pixmap,
-        mask: &[u8],
-        size: i32,
-        x0: i32,
-        y0: i32,
-        rot: f32,
-        alpha: u32,
-    ) {
+    pub fn rotated(&mut self, src: &tiny_skia::Pixmap, mask: &[u8], size: i32, x0: i32, y0: i32, rot: f32, alpha: u32) {
         let sw = src.width() as i32;
         let sh = src.height() as i32;
         let sd = src.data();
@@ -383,10 +332,8 @@ impl Target<'_> {
                 if m != 0 && x >= 0 && x < self.w {
                     let (ix, iy) = (sx >> 8, sy >> 8);
                     let (ax, ay) = ((sx & 255) as u32, (sy & 255) as u32);
-                    let top =
-                        scale(fetch(ix, iy), 255 - ax).wrapping_add(scale(fetch(ix + 1, iy), ax));
-                    let bot = scale(fetch(ix, iy + 1), 255 - ax)
-                        .wrapping_add(scale(fetch(ix + 1, iy + 1), ax));
+                    let top = scale(fetch(ix, iy), 255 - ax).wrapping_add(scale(fetch(ix + 1, iy), ax));
+                    let bot = scale(fetch(ix, iy + 1), 255 - ax).wrapping_add(scale(fetch(ix + 1, iy + 1), ax));
                     let mut px = scale(top, 255 - ay).wrapping_add(scale(bot, ay));
                     let k = (m * alpha) >> 8;
                     if k < 255 {
@@ -420,44 +367,16 @@ mod tests {
         };
         let c = [100, 50, 20, 180];
         for _ in 0..3000 {
-            let mut t = Target {
-                data: &mut data,
-                w,
-                h,
-            };
+            let mut t = Target { data: &mut data, w, h };
             let (x, y) = (rnd(-200.0, 260.0), rnd(-200.0, 250.0));
             let (rw, rh) = (rnd(-5.0, 300.0), rnd(-5.0, 300.0));
             t.rrect(x, y, rw, rh, rnd(-3.0, 80.0), c);
-            t.polar_stroke(
-                x,
-                y,
-                rnd(-5.0, 120.0),
-                rnd(0.0, 6.0),
-                14.0,
-                rnd(0.0, 6.0),
-                rnd(-7.0, 7.0),
-                rnd(-7.0, 7.0),
-                rnd(0.0, 8.0),
-                c,
-            );
-            t.wave_h(
-                x,
-                x + rnd(-20.0, 300.0),
-                y,
-                rnd(0.0, 5.0),
-                rnd(0.0, 30.0),
-                0.3,
-                rnd(0.0, 6.0),
-                c,
-            );
+            t.polar_stroke(x, y, rnd(-5.0, 120.0), rnd(0.0, 6.0), 14.0, rnd(0.0, 6.0), rnd(-7.0, 7.0), rnd(-7.0, 7.0), rnd(0.0, 8.0), c);
+            t.wave_h(x, x + rnd(-20.0, 300.0), y, rnd(0.0, 5.0), rnd(0.0, 30.0), 0.3, rnd(0.0, 6.0), c);
         }
         let src = tiny_skia::Pixmap::new(20, 20).unwrap();
         let mask = vec![255u8; 30 * 30];
-        let mut t = Target {
-            data: &mut data,
-            w,
-            h,
-        };
+        let mut t = Target { data: &mut data, w, h };
         for (x, y) in [(-40, -40), (50, 40), (-10, 30), (60, -5)] {
             t.rotated(&src, &mask, 30, x, y, 0.7, 256);
         }
@@ -467,11 +386,7 @@ mod tests {
     fn opaque_rect_fills_its_inside() {
         let (w, h) = (20, 20);
         let mut data = vec![0u8; (w * h * 4) as usize];
-        let mut t = Target {
-            data: &mut data,
-            w,
-            h,
-        };
+        let mut t = Target { data: &mut data, w, h };
         t.rrect(2.0, 2.0, 16.0, 16.0, 4.0, [255, 0, 0, 255]);
         let px = |x: i32, y: i32| &data[((y * w + x) * 4) as usize..((y * w + x) * 4 + 4) as usize];
         assert_eq!(px(10, 10), &[255, 0, 0, 255]);

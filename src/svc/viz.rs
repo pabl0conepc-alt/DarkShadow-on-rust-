@@ -15,9 +15,7 @@ fn wanted(app: &App) -> bool {
     if c.performance.gaming || app.st.toggles.gaming || !app.st.media.playing {
         return false;
     }
-    let desk = c.widgets.enabled
-        && c.widgets.visualizer.enabled
-        && !(app.st.wm.covered && c.widgets.pause_covered);
+    let desk = c.widgets.enabled && c.widgets.visualizer.enabled && !(app.st.wm.covered && c.widgets.pause_covered);
     let island = c.bar.enabled && c.island.wave;
     desk || island
 }
@@ -43,11 +41,7 @@ pub fn update_wanted(app: &mut App) {
             |app, line| {
                 let v = &mut app.st.viz;
                 v.clear();
-                v.extend(
-                    line.split(';')
-                        .filter(|x| !x.is_empty())
-                        .map(|x| x.parse::<f32>().unwrap_or(0.0) / 1000.0),
-                );
+                v.extend(line.split(';').filter(|x| !x.is_empty()).map(|x| x.parse::<f32>().unwrap_or(0.0) / 1000.0));
                 app.mark(topic::VIZ);
             },
             |app| {

@@ -26,11 +26,7 @@ fn bar_top(app: &App) -> bool {
 pub fn open_card(app: &mut App, mode: CardMode, pinned: bool) {
     let now = Instant::now();
     let c = &mut app.ui.card;
-    if app.surfs.iter().any(|s| s.kind == Kind::Card && !s.closing)
-        && c.mode == mode
-        && pinned
-        && c.pinned
-    {
+    if app.surfs.iter().any(|s| s.kind == Kind::Card && !s.closing) && c.mode == mode && pinned && c.pinned {
         close_card(app);
         return;
     }
@@ -40,11 +36,7 @@ pub fn open_card(app: &mut App, mode: CardMode, pinned: bool) {
     c.rev.set(true, now);
     c.left_at = None;
     let top = bar_top(app);
-    let bh = if app.cfg.bar.enabled {
-        crate::shell::bar_height(app) as i32 - 10
-    } else {
-        8
-    };
+    let bh = if app.cfg.bar.enabled { crate::shell::bar_height(app) as i32 - 10 } else { 8 };
     app.open(Spec {
         kind: Kind::Card,
         layer: Layer::Top,
@@ -53,18 +45,9 @@ pub fn open_card(app: &mut App, mode: CardMode, pinned: bool) {
         size: (520 + 2 * SHADOW as u32, 330 + 2 * SHADOW as u32),
         exclusive: -1,
         margin: if top { (bh, 0, 0, 0) } else { (0, 0, bh, 0) },
-        kb: if pinned {
-            KeyboardInteractivity::OnDemand
-        } else {
-            KeyboardInteractivity::None
-        },
+        kb: if pinned { KeyboardInteractivity::OnDemand } else { KeyboardInteractivity::None },
         output: app.svc.main_output.clone(),
-        topics: topic::CLOCK
-            | topic::MEDIA
-            | topic::SYS
-            | topic::WEATHER
-            | topic::NOTIF
-            | topic::THEME,
+        topics: topic::CLOCK | topic::MEDIA | topic::SYS | topic::WEATHER | topic::NOTIF | topic::THEME,
         fps: 30,
     });
     let pinned_now = app.ui.card.pinned;
@@ -114,11 +97,7 @@ pub fn open_clipboard(app: &mut App) {
         return;
     }
     if !crate::proc::which("cliphist") {
-        system_notice(
-            app,
-            "Clipboard",
-            "cliphist is not installed (it keeps the history)",
-        );
+        system_notice(app, "Clipboard", "cliphist is not installed (it keeps the history)");
         return;
     }
     crate::proc::capture(app, &["cliphist", "list"], |app, out| {
@@ -127,12 +106,7 @@ pub fn open_clipboard(app: &mut App) {
             .filter(|l| !l.trim().is_empty())
             .take(300)
             .map(|l| {
-                let shown = l
-                    .split_once('\t')
-                    .map(|x| x.1)
-                    .unwrap_or(l)
-                    .trim()
-                    .to_string();
+                let shown = l.split_once('\t').map(|x| x.1).unwrap_or(l).trim().to_string();
                 (l.to_string(), shown)
             })
             .collect();
@@ -157,10 +131,7 @@ fn show_launcher(app: &mut App) {
     let h = 70 + rows * 56 + 22 + 2 * SHADOW as u32;
     let (anchor, margin) = match c.position.as_str() {
         "top" => (Anchor::TOP, (90, 0, 0, 0)),
-        "bottom" => (
-            Anchor::BOTTOM,
-            (0, 0, crate::shell::bar_height(app) as i32 + 6, 0),
-        ),
+        "bottom" => (Anchor::BOTTOM, (0, 0, crate::shell::bar_height(app) as i32 + 6, 0)),
         _ => (Anchor::empty(), (0, 0, 0, 0)),
     };
     app.open(Spec {
@@ -189,13 +160,7 @@ pub fn filter_apps(app: &mut App) {
     let q = app.ui.launcher.query.trim().to_lowercase();
     if app.ui.launcher.clip_mode {
         let l = &mut app.ui.launcher;
-        l.results = l
-            .clip
-            .iter()
-            .enumerate()
-            .filter(|(_, c)| q.is_empty() || c.1.to_lowercase().contains(&q))
-            .map(|(i, _)| i)
-            .collect();
+        l.results = l.clip.iter().enumerate().filter(|(_, c)| q.is_empty() || c.1.to_lowercase().contains(&q)).map(|(i, _)| i).collect();
         l.sel = 0;
         l.top = 0;
         app.mark_kind(Kind::Launcher);
@@ -216,11 +181,7 @@ pub fn filter_apps(app: &mut App) {
     if q.is_empty() {
         v.sort_by(|a, b| b.1.cmp(&a.1).then(a.2.cmp(&b.2)));
     } else {
-        v.sort_by(|a, b| {
-            (b.0 + b.1.min(50) as i32 * 4)
-                .cmp(&(a.0 + a.1.min(50) as i32 * 4))
-                .then(a.2.cmp(&b.2))
-        });
+        v.sort_by(|a, b| (b.0 + b.1.min(50) as i32 * 4).cmp(&(a.0 + a.1.min(50) as i32 * 4)).then(a.2.cmp(&b.2)));
     }
     app.ui.launcher.results = v.into_iter().map(|x| x.2).collect();
     app.ui.launcher.sel = 0;
@@ -303,10 +264,7 @@ pub fn toggle_picker(app: &mut App) {
     let list = crate::shell::wallpaper_list(app);
     let cur = app.st.wall.path.clone();
     let p = &mut app.ui.picker;
-    p.sel = list
-        .iter()
-        .position(|x| x.to_string_lossy() == cur)
-        .unwrap_or(0);
+    p.sel = list.iter().position(|x| x.to_string_lossy() == cur).unwrap_or(0);
     p.list = list;
     p.thumbs.clear();
     p.rev.set(true, Instant::now());
@@ -367,26 +325,11 @@ fn dock_click(app: &mut App, key: &str) {
         Some(c.to_string())
     } else {
         let idx = app.svc.apps.list.iter().position(|e| e.id == key);
-        app.st
-            .wm
-            .apps
-            .iter()
-            .find(|(c, _, _)| {
-                crate::svc::apps::for_window(&app.svc.apps.list, c)
-                    .map(|x| Some(x.0) == idx)
-                    .unwrap_or(false)
-            })
-            .map(|(c, _, _)| c.clone())
+        app.st.wm.apps.iter().find(|(c, _, _)| crate::svc::apps::for_window(&app.svc.apps.list, c).map(|x| Some(x.0) == idx).unwrap_or(false)).map(|(c, _, _)| c.clone())
     };
     match class {
         Some(c) => match app.st.wm.kind {
-            WmKind::Hyprland => hypr::dispatch(
-                app,
-                &format!(
-                    "focuswindow class:^({})$",
-                    c.replace(['(', ')', '^', '$'], "")
-                ),
-            ),
+            WmKind::Hyprland => hypr::dispatch(app, &format!("focuswindow class:^({})$", c.replace(['(', ')', '^', '$'], ""))),
             WmKind::Drift => {
                 let _ = drift::request(&serde_json::json!({ "Focus": c }));
             }
@@ -401,38 +344,16 @@ fn dock_click(app: &mut App, key: &str) {
 }
 
 /// A tray app's menu above (or below) its icon.
-pub fn open_tray_menu(
-    app: &mut App,
-    service: String,
-    path: String,
-    entries: Vec<crate::svc::tray::MenuEntry>,
-    x: i32,
-) {
+pub fn open_tray_menu(app: &mut App, service: String, path: String, entries: Vec<crate::svc::tray::MenuEntry>, x: i32) {
     close_others(app, Kind::Menu);
     app.destroy(Kind::Menu);
     let h = crate::ui::menu::height(&entries) as u32;
     let w = 280u32;
-    app.ui.menu = crate::ui::MenuUi {
-        service,
-        path,
-        entries,
-        rev: crate::anim::Reveal::new(200, 140),
-    };
+    app.ui.menu = crate::ui::MenuUi { service, path, entries, rev: crate::anim::Reveal::new(200, 140) };
     app.ui.menu.rev.set(true, Instant::now());
     let top = bar_top(app);
-    let bh = if app.cfg.bar.enabled {
-        crate::shell::bar_height(app) as i32 - 8
-    } else {
-        8
-    };
-    let sw = app
-        .svc
-        .main_output
-        .as_ref()
-        .and_then(|o| app.outputs.info(o))
-        .and_then(|i| i.logical_size)
-        .map(|s| s.0)
-        .unwrap_or(1920);
+    let bh = if app.cfg.bar.enabled { crate::shell::bar_height(app) as i32 - 8 } else { 8 };
+    let sw = app.svc.main_output.as_ref().and_then(|o| app.outputs.info(o)).and_then(|i| i.logical_size).map(|s| s.0).unwrap_or(1920);
     let left = (x - w as i32 / 2 - SHADOW).clamp(0, (sw - w as i32 - 2 * SHADOW).max(0));
     app.open(Spec {
         kind: Kind::Menu,
@@ -441,11 +362,7 @@ pub fn open_tray_menu(
         anchor: if top { Anchor::TOP } else { Anchor::BOTTOM } | Anchor::LEFT,
         size: (w + 2 * SHADOW as u32, h + 2 * SHADOW as u32),
         exclusive: -1,
-        margin: if top {
-            (bh, 0, 0, left)
-        } else {
-            (0, 0, bh, left)
-        },
+        margin: if top { (bh, 0, 0, left) } else { (0, 0, bh, left) },
         kb: KeyboardInteractivity::OnDemand,
         output: app.svc.main_output.clone(),
         topics: topic::THEME,
@@ -521,24 +438,17 @@ pub fn island_flash(app: &mut App, mode: IslandMode) {
     isl.mode_at = now;
     isl.pulse = Some(now);
     app.mark_kind(Kind::Bar);
-    let stay = if mode == IslandMode::Charger {
-        2600
-    } else {
-        1500
-    };
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_millis(stay)),
-        move |_, _, app: &mut App| {
-            let isl = &mut app.ui.island;
-            if isl.mode == mode && isl.mode_at.elapsed() >= Duration::from_millis(stay - 20) {
-                isl.mode = IslandMode::Idle;
-                isl.face.jump(0.0);
-                isl.face.set(1.0, Instant::now());
-                app.mark_kind(Kind::Bar);
-            }
-            TimeoutAction::Drop
-        },
-    );
+    let stay = if mode == IslandMode::Charger { 2600 } else { 1500 };
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(stay)), move |_, _, app: &mut App| {
+        let isl = &mut app.ui.island;
+        if isl.mode == mode && isl.mode_at.elapsed() >= Duration::from_millis(stay - 20) {
+            isl.mode = IslandMode::Idle;
+            isl.face.jump(0.0);
+            isl.face.set(1.0, Instant::now());
+            app.mark_kind(Kind::Bar);
+        }
+        TimeoutAction::Drop
+    });
 }
 
 // ------------------------------------------------------------------ notifications
@@ -566,18 +476,11 @@ pub fn notif_arrived(app: &mut App, id: u32) {
     if urgency >= 2 {
         return; // critical: stays until dismissed
     }
-    let ms = if timeout > 0 {
-        timeout.clamp(2000, 30000) as u64
-    } else {
-        app.cfg.notifications.timeout.clamp(2, 60) as u64 * 1000
-    };
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_millis(ms)),
-        move |_, _, app: &mut App| {
-            expire_popup(app, id);
-            TimeoutAction::Drop
-        },
-    );
+    let ms = if timeout > 0 { timeout.clamp(2000, 30000) as u64 } else { app.cfg.notifications.timeout.clamp(2, 60) as u64 * 1000 };
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(ms)), move |_, _, app: &mut App| {
+        expire_popup(app, id);
+        TimeoutAction::Drop
+    });
 }
 
 fn expire_popup(app: &mut App, id: u32) {
@@ -586,13 +489,10 @@ fn expire_popup(app: &mut App, id: u32) {
     }
     // pointing at it holds it
     if app.ui.card.hovered {
-        let _ = app.lh.insert_source(
-            Timer::from_duration(Duration::from_millis(1500)),
-            move |_, _, app: &mut App| {
-                expire_popup(app, id);
-                TimeoutAction::Drop
-            },
-        );
+        let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(1500)), move |_, _, app: &mut App| {
+            expire_popup(app, id);
+            TimeoutAction::Drop
+        });
         return;
     }
     app.st.notifs.popup = None;
@@ -629,21 +529,11 @@ pub fn system_notice(app: &mut App, summary: &str, body: &str) {
 // ------------------------------------------------------------------ hardware
 
 pub fn brightness_read(app: &mut App) {
-    let Ok(rd) = std::fs::read_dir("/sys/class/backlight") else {
-        return;
-    };
-    let Some(dev) = rd.flatten().next() else {
-        return;
-    };
+    let Ok(rd) = std::fs::read_dir("/sys/class/backlight") else { return };
+    let Some(dev) = rd.flatten().next() else { return };
     let p = dev.path();
-    let max = std::fs::read_to_string(p.join("max_brightness"))
-        .ok()
-        .and_then(|s| s.trim().parse::<u32>().ok())
-        .unwrap_or(0);
-    let cur = std::fs::read_to_string(p.join("brightness"))
-        .ok()
-        .and_then(|s| s.trim().parse::<u32>().ok())
-        .unwrap_or(0);
+    let max = std::fs::read_to_string(p.join("max_brightness")).ok().and_then(|s| s.trim().parse::<u32>().ok()).unwrap_or(0);
+    let cur = std::fs::read_to_string(p.join("brightness")).ok().and_then(|s| s.trim().parse::<u32>().ok()).unwrap_or(0);
     if max > 0 {
         let b = &mut app.st.bright;
         b.ok = true;
@@ -666,12 +556,7 @@ pub fn brightness_set(app: &mut App, v: f32) {
     let raw = (v * app.st.bright.max as f32).round() as u32;
     let dev = app.st.bright.device.clone();
     if !bus::set_backlight(app, &dev, raw) && crate::proc::which("brightnessctl") {
-        crate::proc::spawn(&[
-            "brightnessctl",
-            "-q",
-            "set",
-            &format!("{}%", (v * 100.0) as u32),
-        ]);
+        crate::proc::spawn(&["brightnessctl", "-q", "set", &format!("{}%", (v * 100.0) as u32)]);
     }
     app.mark(topic::AUDIO);
 }
@@ -778,11 +663,7 @@ pub fn focus_tick(app: &mut App) {
         }
         f.on_break = !was_break;
         f.left = f.total();
-        let (s, b) = if was_break {
-            ("Back to focus", "Your break is over.")
-        } else {
-            ("Time for a break", "Nice work. Stand up for a moment.")
-        };
+        let (s, b) = if was_break { ("Back to focus", "Your break is over.") } else { ("Time for a break", "Nice work. Stand up for a moment.") };
         system_notice(app, s, b);
     }
 }
@@ -818,10 +699,7 @@ pub fn act(app: &mut App, a: Act) {
             WmKind::None => {}
         },
         Act::WsRel(d) => match app.st.wm.kind {
-            WmKind::Hyprland => hypr::dispatch(
-                app,
-                &format!("workspace {}", if d > 0 { "e+1" } else { "e-1" }),
-            ),
+            WmKind::Hyprland => hypr::dispatch(app, &format!("workspace {}", if d > 0 { "e+1" } else { "e-1" })),
             WmKind::Drift => drift::step(app, d),
             WmKind::None => {}
         },
@@ -873,13 +751,7 @@ pub fn act(app: &mut App, a: Act) {
         Act::NotifDismiss(id) => bus::close(app, id, 2),
         Act::NotifAction(id, key) => bus::invoke(app, id, &key),
         Act::NotifOpen(id) => {
-            let has_default = app
-                .st
-                .notifs
-                .list
-                .iter()
-                .find(|n| n.id == id)
-                .map(|n| n.actions.iter().any(|a| a.0 == "default"));
+            let has_default = app.st.notifs.list.iter().find(|n| n.id == id).map(|n| n.actions.iter().any(|a| a.0 == "default"));
             if has_default == Some(true) {
                 bus::invoke(app, id, "default");
             } else {
@@ -939,11 +811,7 @@ pub fn act(app: &mut App, a: Act) {
         }
         Act::CardTab(t) => {
             app.ui.card.tab = t;
-            app.ui.card.mode = if t == 1 {
-                CardMode::System
-            } else {
-                CardMode::Today
-            };
+            app.ui.card.mode = if t == 1 { CardMode::System } else { CardMode::Today };
             crate::svc::sysmon::update_wanted(app);
             app.mark_kind(Kind::Card);
         }
@@ -964,11 +832,7 @@ pub fn act(app: &mut App, a: Act) {
         Act::Settings => toggle_settings(app),
         Act::OpenConfigFile => open_settings(app),
         Act::Reload => crate::shell::reload(app),
-        Act::NotifTest => system_notice(
-            app,
-            "Hello from DarkShadow",
-            "Notifications are working. This one goes away by itself.",
-        ),
+        Act::NotifTest => system_notice(app, "Hello from DarkShadow", "Notifications are working. This one goes away by itself."),
         Act::EditMode => {
             app.ui.edit = !app.ui.edit;
             close_all(app);
@@ -1070,15 +934,12 @@ pub fn act(app: &mut App, a: Act) {
 /// Look for Bluetooth devices for 20 seconds.
 fn bt_scan_for_a_while(app: &mut App) {
     bus::bt_scan(app, true);
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_secs(20)),
-        |_, _, app: &mut App| {
-            if app.st.bt.scanning {
-                bus::bt_scan(app, false);
-            }
-            TimeoutAction::Drop
-        },
-    );
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_secs(20)), |_, _, app: &mut App| {
+        if app.st.bt.scanning {
+            bus::bt_scan(app, false);
+        }
+        TimeoutAction::Drop
+    });
 }
 
 fn open_settings(app: &mut App) {
@@ -1106,9 +967,7 @@ fn launch(app: &mut App, i: usize) {
         close_launcher(app);
         return;
     }
-    let Some(e) = app.svc.apps.list.get(i).cloned() else {
-        return;
-    };
+    let Some(e) = app.svc.apps.list.get(i).cloned() else { return };
     let term = app.cfg.apps.terminal.clone();
     let cmd = crate::svc::apps::command(&e, &term);
     *app.saved.app_usage.entry(e.id.clone()).or_insert(0) += 1;
@@ -1137,11 +996,7 @@ fn wallpaper_next(app: &mut App) {
         return;
     }
     let cur = app.st.wall.path.clone();
-    let i = list
-        .iter()
-        .position(|p| p.to_string_lossy() == cur)
-        .map(|i| (i + 1) % list.len())
-        .unwrap_or(0);
+    let i = list.iter().position(|p| p.to_string_lossy() == cur).map(|i| (i + 1) % list.len()).unwrap_or(0);
     crate::shell::set_wallpaper(app, list[i].clone(), true);
 }
 
@@ -1195,10 +1050,7 @@ pub fn scroll_surface(app: &mut App, kind: Kind, d: f32) {
             } else {
                 l.top = l.top.saturating_sub(1);
             }
-            l.sel = l.sel.clamp(
-                l.top,
-                (l.top + rows).saturating_sub(1).min(n.saturating_sub(1)),
-            );
+            l.sel = l.sel.clamp(l.top, (l.top + rows).saturating_sub(1).min(n.saturating_sub(1)));
             app.mark_kind(Kind::Launcher);
         }
         Kind::Control => {
@@ -1209,11 +1061,7 @@ pub fn scroll_surface(app: &mut App, kind: Kind, d: f32) {
             let n = app.ui.picker.list.len();
             if n > 0 {
                 let p = &mut app.ui.picker;
-                p.sel = if d > 0.0 {
-                    (p.sel + 1).min(n - 1)
-                } else {
-                    p.sel.saturating_sub(1)
-                };
+                p.sel = if d > 0.0 { (p.sel + 1).min(n - 1) } else { p.sel.saturating_sub(1) };
                 app.mark_kind(Kind::Picker);
             }
         }
@@ -1238,25 +1086,18 @@ pub fn on_enter(app: &mut App, kind: Kind, entered: bool) {
                     app.ui.bar_rev.set(true, Instant::now());
                     app.mark_kind(Kind::Bar);
                 } else {
-                    let _ = app.lh.insert_source(
-                        Timer::from_duration(Duration::from_millis(700)),
-                        |_, _, app: &mut App| {
-                            let card_open = app.has(Kind::Card) || app.has(Kind::Control);
-                            let on_bar = app.svc.ptr_on_bar;
-                            if !card_open && !on_bar && !app.svc.island_hovered {
-                                app.ui.bar_rev.set(false, Instant::now());
-                                app.mark_kind(Kind::Bar);
-                            }
-                            TimeoutAction::Drop
-                        },
-                    );
+                    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(700)), |_, _, app: &mut App| {
+                        let card_open = app.has(Kind::Card) || app.has(Kind::Control);
+                        let on_bar = app.svc.ptr_on_bar;
+                        if !card_open && !on_bar && !app.svc.island_hovered {
+                            app.ui.bar_rev.set(false, Instant::now());
+                            app.mark_kind(Kind::Bar);
+                        }
+                        TimeoutAction::Drop
+                    });
                 }
             }
-            if !entered
-                && !app.ui.card.pinned
-                && app.ui.card.mode == CardMode::Player
-                && app.has(Kind::Card)
-            {
+            if !entered && !app.ui.card.pinned && app.ui.card.mode == CardMode::Player && app.has(Kind::Card) {
                 schedule_card_close(app, 700);
             }
         }
@@ -1275,15 +1116,12 @@ pub fn hover(app: &mut App, kind: Kind, a: Option<Act>) {
     }
     app.svc.island_hovered = on;
     if on {
-        let _ = app.lh.insert_source(
-            Timer::from_duration(Duration::from_millis(260)),
-            |_, _, app: &mut App| {
-                if app.svc.island_hovered {
-                    island_hover(app);
-                }
-                TimeoutAction::Drop
-            },
-        );
+        let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(260)), |_, _, app: &mut App| {
+            if app.svc.island_hovered {
+                island_hover(app);
+            }
+            TimeoutAction::Drop
+        });
     } else if app.has(Kind::Card) && !app.ui.card.pinned && app.ui.card.mode == CardMode::Player {
         schedule_card_close(app, 700);
     }
@@ -1291,35 +1129,23 @@ pub fn hover(app: &mut App, kind: Kind, a: Option<Act>) {
 
 /// Called by the bar when the pointer rests on the island: the player grows out of it.
 pub fn island_hover(app: &mut App) {
-    if app.cfg.island.media
-        && app.st.media.active()
-        && !app.has(Kind::Card)
-        && !app.has(Kind::Control)
-    {
+    if app.cfg.island.media && app.st.media.active() && !app.has(Kind::Card) && !app.has(Kind::Control) {
         open_card(app, CardMode::Player, false);
     }
 }
 
 fn schedule_card_close(app: &mut App, ms: u64) {
     app.ui.card.left_at = Some(Instant::now());
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_millis(ms)),
-        move |_, _, app: &mut App| {
-            let c = &app.ui.card;
-            if !c.pinned
-                && !c.hovered
-                && c.left_at
-                    .map(|t| t.elapsed() >= Duration::from_millis(ms - 20))
-                    .unwrap_or(false)
-            {
-                let on_island = app.svc.island_hovered;
-                if !on_island && app.ui.card.mode == CardMode::Player {
-                    close_card(app);
-                }
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(ms)), move |_, _, app: &mut App| {
+        let c = &app.ui.card;
+        if !c.pinned && !c.hovered && c.left_at.map(|t| t.elapsed() >= Duration::from_millis(ms - 20)).unwrap_or(false) {
+            let on_island = app.svc.island_hovered;
+            if !on_island && app.ui.card.mode == CardMode::Player {
+                close_card(app);
             }
-            TimeoutAction::Drop
-        },
-    );
+        }
+        TimeoutAction::Drop
+    });
 }
 
 pub fn press_empty(app: &mut App, kind: Kind, button: u32, x: f32, y: f32) {
@@ -1350,9 +1176,7 @@ pub fn press_empty(app: &mut App, kind: Kind, button: u32, x: f32, y: f32) {
 }
 
 pub fn drag_motion(app: &mut App, kind: Kind, x: f32, y: f32) -> bool {
-    let Some((w, (sx, sy), (cx, cy))) = app.ui.drag else {
-        return false;
-    };
+    let Some((w, (sx, sy), (cx, cy))) = app.ui.drag else { return false };
     if kind != Kind::Widget(w) {
         return false;
     }
@@ -1376,9 +1200,7 @@ pub fn drag_motion(app: &mut App, kind: Kind, x: f32, y: f32) -> bool {
 }
 
 pub fn drag_end(app: &mut App, kind: Kind) -> bool {
-    let Some((w, _, _)) = app.ui.drag.take() else {
-        return false;
-    };
+    let Some((w, _, _)) = app.ui.drag.take() else { return false };
     if kind != Kind::Widget(w) {
         return false;
     }
@@ -1392,13 +1214,9 @@ fn save_widget_pos(app: &mut App, w: WidgetId) {
     let text = std::fs::read_to_string(&p).unwrap_or_default();
     let mut doc: toml::Table = toml::from_str(&text).unwrap_or_default();
     let c = w.cfg(&app.cfg).clone();
-    let widgets = doc
-        .entry("widgets")
-        .or_insert(toml::Value::Table(Default::default()));
+    let widgets = doc.entry("widgets").or_insert(toml::Value::Table(Default::default()));
     if let toml::Value::Table(t) = widgets {
-        let e = t
-            .entry(w.name())
-            .or_insert(toml::Value::Table(Default::default()));
+        let e = t.entry(w.name()).or_insert(toml::Value::Table(Default::default()));
         if let toml::Value::Table(wt) = e {
             wt.insert("x".into(), toml::Value::Integer(c.x as i64));
             wt.insert("y".into(), toml::Value::Integer(c.y as i64));
@@ -1409,13 +1227,10 @@ fn save_widget_pos(app: &mut App, w: WidgetId) {
     let _ = std::fs::create_dir_all(p.parent().unwrap());
     app.svc.reload_armed = true; // our own write: no reload
     let _ = std::fs::write(&p, toml::to_string(&doc).unwrap_or_default());
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_millis(400)),
-        |_, _, app: &mut App| {
-            app.svc.reload_armed = false;
-            TimeoutAction::Drop
-        },
-    );
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(400)), |_, _, app: &mut App| {
+        app.svc.reload_armed = false;
+        TimeoutAction::Drop
+    });
 }
 
 pub fn focus_lost(app: &mut App, kind: Kind) {
@@ -1499,9 +1314,7 @@ pub fn key(app: &mut App, ev: &KeyEvent) {
             let n = 5;
             match sym {
                 Keysym::Left | Keysym::Up => app.ui.power_sel = (app.ui.power_sel + n - 1) % n,
-                Keysym::Right | Keysym::Down | Keysym::Tab => {
-                    app.ui.power_sel = (app.ui.power_sel + 1) % n
-                }
+                Keysym::Right | Keysym::Down | Keysym::Tab => app.ui.power_sel = (app.ui.power_sel + 1) % n,
                 Keysym::Return | Keysym::KP_Enter | Keysym::space => {
                     let p = crate::ui::power::ACTS[app.ui.power_sel].0;
                     power(app, p);
@@ -1516,12 +1329,8 @@ pub fn key(app: &mut App, ev: &KeyEvent) {
                 return;
             }
             match sym {
-                Keysym::Left | Keysym::Up => {
-                    app.ui.picker.sel = app.ui.picker.sel.saturating_sub(1)
-                }
-                Keysym::Right | Keysym::Down | Keysym::Tab => {
-                    app.ui.picker.sel = (app.ui.picker.sel + 1).min(n - 1)
-                }
+                Keysym::Left | Keysym::Up => app.ui.picker.sel = app.ui.picker.sel.saturating_sub(1),
+                Keysym::Right | Keysym::Down | Keysym::Tab => app.ui.picker.sel = (app.ui.picker.sel + 1).min(n - 1),
                 Keysym::Return | Keysym::KP_Enter => {
                     let i = app.ui.picker.sel;
                     act(app, Act::Wallpaper(i));
@@ -1577,13 +1386,7 @@ fn launcher_key(app: &mut App, ev: &KeyEvent) {
             return;
         }
         _ => {
-            if ctrl
-                && ev
-                    .utf8
-                    .as_deref()
-                    .map(|s| s.eq_ignore_ascii_case("u"))
-                    .unwrap_or(false)
-            {
+            if ctrl && ev.utf8.as_deref().map(|s| s.eq_ignore_ascii_case("u")).unwrap_or(false) {
                 l.query.clear();
                 filter_apps(app);
                 return;
@@ -1655,8 +1458,7 @@ fn toggle_panel(app: &mut App, p: &str) {
 }
 
 fn pct_arg(s: Option<&&str>) -> Option<f32> {
-    s.and_then(|v| v.trim_end_matches('%').parse::<f32>().ok())
-        .map(|v| (v / 100.0).clamp(0.0, 1.0))
+    s.and_then(|v| v.trim_end_matches('%').parse::<f32>().ok()).map(|v| (v / 100.0).clamp(0.0, 1.0))
 }
 
 pub fn command(app: &mut App, line: &str) -> String {
@@ -1783,11 +1585,7 @@ pub fn command(app: &mut App, line: &str) -> String {
             Ok(())
         }
         ["notifs", "test"] => {
-            system_notice(
-                app,
-                "Hello from DarkShadow",
-                "Notifications are working. This one goes away by itself.",
-            );
+            system_notice(app, "Hello from DarkShadow", "Notifications are working. This one goes away by itself.");
             Ok(())
         }
         ["ws", "next"] => {
@@ -1872,12 +1670,7 @@ pub fn command(app: &mut App, line: &str) -> String {
                 return app.debug_right(kind, x.parse().unwrap_or(0.0), y.parse().unwrap_or(0.0));
             }
             let wheel = a.get(4).and_then(|w| w.parse::<f32>().ok()).unwrap_or(0.0);
-            return app.debug_click(
-                kind,
-                x.parse().unwrap_or(0.0),
-                y.parse().unwrap_or(0.0),
-                wheel,
-            );
+            return app.debug_click(kind, x.parse().unwrap_or(0.0), y.parse().unwrap_or(0.0), wheel);
         }
         _ => Err(format!("unknown command `{line}` (see dshell --help)")),
     };
@@ -1890,27 +1683,10 @@ pub fn command(app: &mut App, line: &str) -> String {
 fn status(app: &App) -> String {
     let rss = std::fs::read_to_string("/proc/self/status")
         .ok()
-        .and_then(|s| {
-            s.lines()
-                .find(|l| l.starts_with("VmRSS"))
-                .map(|l| l.split_whitespace().nth(1).unwrap_or("0").to_string())
-        })
+        .and_then(|s| s.lines().find(|l| l.starts_with("VmRSS")).map(|l| l.split_whitespace().nth(1).unwrap_or("0").to_string()))
         .unwrap_or_default();
-    let surfs: Vec<String> = app
-        .surfs
-        .iter()
-        .map(|s| {
-            format!(
-                "{:?}[{}x{} draws={} avg={}us pool={}k]",
-                s.kind,
-                s.w,
-                s.h,
-                s.draws,
-                s.draw_us / s.draws.max(1) as u64,
-                s.pool_len / 1024
-            )
-        })
-        .collect();
+    let surfs: Vec<String> =
+        app.surfs.iter().map(|s| format!("{:?}[{}x{} draws={} avg={}us pool={}k]", s.kind, s.w, s.h, s.draws, s.draw_us / s.draws.max(1) as u64, s.pool_len / 1024)).collect();
     format!(
         "wm: {:?}\nworkspace: {} of {}\nmedia: {} — {} ({})\nvolume: {:.0}%{}\nnotifications: {} (server: {})\nsurfaces: {}\nmemory: {} kB",
         app.st.wm.kind,
@@ -1918,11 +1694,7 @@ fn status(app: &App) -> String {
         app.st.wm.workspaces.len(),
         app.st.media.title,
         app.st.media.artist,
-        if app.st.media.playing {
-            "playing"
-        } else {
-            "paused"
-        },
+        if app.st.media.playing { "playing" } else { "paused" },
         app.st.audio.vol * 100.0,
         if app.st.audio.muted { " muted" } else { "" },
         app.st.notifs.list.len(),

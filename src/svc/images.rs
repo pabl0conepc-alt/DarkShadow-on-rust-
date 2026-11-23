@@ -8,25 +8,12 @@ use crate::gfx::Image;
 use crate::state::topic;
 
 fn decode_file(path: &Path, max: u32) -> Option<image::RgbaImage> {
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase();
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
     if ext == "svg" || ext == "svgz" {
         return render_svg(path, max);
     }
-    let img = image::ImageReader::open(path)
-        .ok()?
-        .with_guessed_format()
-        .ok()?
-        .decode()
-        .ok()?;
-    let img = if img.width() > max || img.height() > max {
-        img.thumbnail(max, max)
-    } else {
-        img
-    };
+    let img = image::ImageReader::open(path).ok()?.with_guessed_format().ok()?.decode().ok()?;
+    let img = if img.width() > max || img.height() > max { img.thumbnail(max, max) } else { img };
     Some(img.to_rgba8())
 }
 
@@ -35,16 +22,9 @@ fn render_svg(path: &Path, size: u32) -> Option<image::RgbaImage> {
     let tree = resvg::usvg::Tree::from_data(&data, &resvg::usvg::Options::default()).ok()?;
     let ts = tree.size();
     let s = size as f32 / ts.width().max(ts.height()).max(1.0);
-    let (w, h) = (
-        ((ts.width() * s).ceil() as u32).max(1),
-        ((ts.height() * s).ceil() as u32).max(1),
-    );
+    let (w, h) = (((ts.width() * s).ceil() as u32).max(1), ((ts.height() * s).ceil() as u32).max(1));
     let mut pm = tiny_skia::Pixmap::new(w, h)?;
-    resvg::render(
-        &tree,
-        tiny_skia::Transform::from_scale(s, s),
-        &mut pm.as_mut(),
-    );
+    resvg::render(&tree, tiny_skia::Transform::from_scale(s, s), &mut pm.as_mut());
     // back to straight alpha for the common path
     let mut data = pm.take();
     for px in data.chunks_exact_mut(4) {
@@ -64,19 +44,12 @@ fn to_image(img: image::RgbaImage) -> Option<Image> {
 }
 
 /// A square-ish picture (avatar, icon) at most `size` px.
-pub fn load_square(
-    app: &mut App,
-    path: String,
-    size: u32,
-    done: impl FnOnce(&mut App, Option<Rc<Image>>) + 'static,
-) {
+pub fn load_square(app: &mut App, path: String, size: u32, done: impl FnOnce(&mut App, Option<Rc<Image>>) + 'static) {
     crate::proc::background(
         app,
         move || decode_file(Path::new(&path), size).map(|i| (i.width(), i.height(), i.into_raw())),
         move |app, r| {
-            let img = r
-                .and_then(|(w, h, d)| Image::from_rgba(w, h, d))
-                .map(Rc::new);
+            let img = r.and_then(|(w, h, d)| Image::from_rgba(w, h, d)).map(Rc::new);
             done(app, img);
         },
     );
@@ -87,9 +60,7 @@ fn art_cache(url: &str) -> PathBuf {
     for b in url.bytes() {
         h = (h ^ b as u64).wrapping_mul(1099511628211);
     }
-    crate::config::cache_dir()
-        .join("art")
-        .join(format!("{h:016x}"))
+    crate::config::cache_dir().join("art").join(format!("{h:016x}"))
 }
 
 /// Cover art: file:// paths directly, http(s) through curl into the cache (no TLS stack in the shell).
@@ -113,15 +84,11 @@ pub fn load_art(app: &mut App, url: String) {
         let _ = std::fs::create_dir_all(dest.parent().unwrap());
         let d = dest.to_string_lossy().into_owned();
         let d2 = d.clone();
-        crate::proc::capture(
-            app,
-            &["curl", "-fsSL", "-m", "10", "-o", &d2, &url],
-            move |app, _| {
-                if Path::new(&d).is_file() {
-                    load_square(app, d, 256, finish);
-                }
-            },
-        );
+        crate::proc::capture(app, &["curl", "-fsSL", "-m", "10", "-o", &d2, &url], move |app, _| {
+            if Path::new(&d).is_file() {
+                load_square(app, d, 256, finish);
+            }
+        });
         prune_cache();
     }
 }
@@ -129,10 +96,8 @@ pub fn load_art(app: &mut App, url: String) {
 fn prune_cache() {
     let dir = crate::config::cache_dir().join("art");
     if let Ok(rd) = std::fs::read_dir(&dir) {
-        let mut v: Vec<(std::time::SystemTime, PathBuf)> = rd
-            .flatten()
-            .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
-            .collect();
+        let mut v: Vec<(std::time::SystemTime, PathBuf)> =
+            rd.flatten().filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path()))).collect();
         if v.len() > 60 {
             v.sort();
             for (_, p) in v.iter().take(v.len() - 60) {
@@ -171,17 +136,12 @@ pub fn load_notif_icon(app: &mut App, id: u32, src: String) {
         app.svc.apps.find_icon(&src, &theme)
     };
     let Some(path) = path else { return };
-    load_square(
-        app,
-        path.to_string_lossy().into_owned(),
-        96,
-        move |app, img| {
-            if let Some(n) = app.st.notifs.list.iter_mut().find(|n| n.id == id) {
-                n.image = img;
-                app.mark(topic::NOTIF);
-            }
-        },
-    );
+    load_square(app, path.to_string_lossy().into_owned(), 96, move |app, img| {
+        if let Some(n) = app.st.notifs.list.iter_mut().find(|n| n.id == id) {
+            n.image = img;
+            app.mark(topic::NOTIF);
+        }
+    });
 }
 
 /// An app icon for the launcher.
@@ -196,19 +156,14 @@ pub fn load_app_icon(app: &mut App, name: String) {
     };
     app.svc.app_icons_loading.insert(name.clone());
     let key = name.clone();
-    load_square(
-        app,
-        path.to_string_lossy().into_owned(),
-        96,
-        move |app, img| {
-            app.svc.app_icons_loading.remove(&key);
-            if app.svc.app_icons.len() > 200 {
-                app.svc.app_icons.clear();
-            }
-            app.svc.app_icons.insert(key, img);
-            app.mark(topic::APPS);
-        },
-    );
+    load_square(app, path.to_string_lossy().into_owned(), 96, move |app, img| {
+        app.svc.app_icons_loading.remove(&key);
+        if app.svc.app_icons.len() > 200 {
+            app.svc.app_icons.clear();
+        }
+        app.svc.app_icons.insert(key, img);
+        app.mark(topic::APPS);
+    });
 }
 
 /// The wallpaper, scaled to cover `w` x `h`, plus its brightness grid and accent color.
@@ -221,24 +176,14 @@ pub struct WallPixels {
 }
 
 pub fn decode_wallpaper(path: &Path, w: u32, h: u32) -> Option<WallPixels> {
-    let img = image::ImageReader::open(path)
-        .ok()?
-        .with_guessed_format()
-        .ok()?
-        .decode()
-        .ok()?;
+    let img = image::ImageReader::open(path).ok()?.with_guessed_format().ok()?.decode().ok()?;
     let img = cover(img, w, h);
     drop_peak();
     let small = image::imageops::thumbnail(&img, 64, 36);
     let mut lum = Vec::with_capacity(64 * 36);
     let mut px = Vec::with_capacity(64 * 36);
     for p in small.pixels() {
-        let c = crate::color::rgba(
-            p[0] as f32 / 255.0,
-            p[1] as f32 / 255.0,
-            p[2] as f32 / 255.0,
-            1.0,
-        );
+        let c = crate::color::rgba(p[0] as f32 / 255.0, p[1] as f32 / 255.0, p[2] as f32 / 255.0, 1.0);
         lum.push(c.luma());
         px.push([p[0], p[1], p[2]]);
     }
@@ -248,13 +193,7 @@ pub fn decode_wallpaper(path: &Path, w: u32, h: u32) -> Option<WallPixels> {
     for p in img.pixels() {
         rgba.extend_from_slice(&[p[0], p[1], p[2], 255]);
     }
-    Some(WallPixels {
-        w,
-        h,
-        rgba,
-        lum,
-        accent,
-    })
+    Some(WallPixels { w, h, rgba, lum, accent })
 }
 
 /// Scale a picture to cover w x h with little memory: crop to the aspect first, then an integer
@@ -263,10 +202,7 @@ fn cover(img: image::DynamicImage, w: u32, h: u32) -> image::RgbImage {
     let src = img.into_rgb8();
     let (sw, sh) = (src.width().max(1), src.height().max(1));
     let k = (w as f32 / sw as f32).max(h as f32 / sh as f32);
-    let (cw, ch) = (
-        ((w as f32 / k).round() as u32).clamp(1, sw),
-        ((h as f32 / k).round() as u32).clamp(1, sh),
-    );
+    let (cw, ch) = (((w as f32 / k).round() as u32).clamp(1, sw), ((h as f32 / k).round() as u32).clamp(1, sh));
     let (cx, cy) = ((sw - cw) / 2, (sh - ch) / 2);
     let view = image::imageops::crop_imm(&src, cx, cy, cw, ch);
     if cw >= w && ch >= h {
@@ -295,22 +231,13 @@ pub fn load_thumb(app: &mut App, idx: usize, path: PathBuf) {
     crate::proc::background(
         app,
         move || {
-            let img = image::ImageReader::open(&path)
-                .ok()?
-                .with_guessed_format()
-                .ok()?
-                .decode()
-                .ok()?;
-            let t = img
-                .resize_to_fill(320, 200, image::imageops::FilterType::Triangle)
-                .to_rgba8();
+            let img = image::ImageReader::open(&path).ok()?.with_guessed_format().ok()?.decode().ok()?;
+            let t = img.resize_to_fill(320, 200, image::imageops::FilterType::Triangle).to_rgba8();
             Some((t.width(), t.height(), t.into_raw()))
         },
         move |app, r| {
             app.ui.picker.loading.remove(&idx);
-            if let Some(img) =
-                r.and_then(|(w, h, d)| to_image(image::RgbaImage::from_raw(w, h, d)?))
-            {
+            if let Some(img) = r.and_then(|(w, h, d)| to_image(image::RgbaImage::from_raw(w, h, d)?)) {
                 app.ui.picker.thumbs.insert(idx, Rc::new(img));
                 app.mark_kind(crate::ui::Kind::Picker);
             }

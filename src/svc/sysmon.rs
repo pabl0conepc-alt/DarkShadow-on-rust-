@@ -35,13 +35,10 @@ pub fn update_wanted(app: &mut App) {
     let want = wanted(app);
     if want && app.svc.sysmon.token.is_none() {
         sample(app);
-        let t = app.lh.insert_source(
-            Timer::from_duration(Duration::from_secs(2)),
-            |_, _, app: &mut App| {
-                sample(app);
-                TimeoutAction::ToDuration(Duration::from_secs(2))
-            },
-        );
+        let t = app.lh.insert_source(Timer::from_duration(Duration::from_secs(2)), |_, _, app: &mut App| {
+            sample(app);
+            TimeoutAction::ToDuration(Duration::from_secs(2))
+        });
         app.svc.sysmon.token = t.ok();
     } else if !want && let Some(t) = app.svc.sysmon.token.take() {
         app.lh.remove(t);
@@ -67,17 +64,12 @@ fn find_temp() -> Option<String> {
     let rd = std::fs::read_dir("/sys/class/hwmon").ok()?;
     let mut fallback = None;
     for e in rd.flatten() {
-        let name = read(&format!("{}/name", e.path().display()))
-            .trim()
-            .to_string();
+        let name = read(&format!("{}/name", e.path().display())).trim().to_string();
         let p = format!("{}/temp1_input", e.path().display());
         if !std::path::Path::new(&p).exists() {
             continue;
         }
-        if matches!(
-            name.as_str(),
-            "k10temp" | "coretemp" | "zenpower" | "cpu_thermal" | "acpitz"
-        ) {
+        if matches!(name.as_str(), "k10temp" | "coretemp" | "zenpower" | "cpu_thermal" | "acpitz") {
             if name != "acpitz" {
                 return Some(p);
             }
@@ -92,11 +84,7 @@ pub fn sample(app: &mut App) {
     // CPU from the first line of /proc/stat
     let stat = read("/proc/stat");
     if let Some(l) = stat.lines().next() {
-        let v: Vec<u64> = l
-            .split_whitespace()
-            .skip(1)
-            .filter_map(|x| x.parse().ok())
-            .collect();
+        let v: Vec<u64> = l.split_whitespace().skip(1).filter_map(|x| x.parse().ok()).collect();
         if v.len() >= 5 {
             let idle = v[3] + v.get(4).copied().unwrap_or(0);
             let total: u64 = v.iter().take(8).sum();

@@ -93,13 +93,7 @@ fn hue_sat(acc: Rgba) -> (f32, f32, bool) {
 }
 
 impl Theme {
-    pub fn new(
-        accent: Rgba,
-        panel_alpha: f32,
-        style: WidgetStyle,
-        glass: bool,
-        flat: bool,
-    ) -> Theme {
+    pub fn new(accent: Rgba, panel_alpha: f32, style: WidgetStyle, glass: bool, flat: bool) -> Theme {
         let (hue, s0, mono) = hue_sat(accent);
         let sat = if mono { 0.0 } else { s0.clamp(0.35, 0.85) };
         let a = if flat { 1.0 } else { panel_alpha };
@@ -124,11 +118,7 @@ impl Theme {
         let (ah, as_, al) = accent.hsl();
         let accent_hi = Rgba::hsla(
             if ah < 0.0 { 0.0 } else { ah },
-            if as_ < 0.08 {
-                as_
-            } else {
-                as_.clamp(0.42, 0.85)
-            },
+            if as_ < 0.08 { as_ } else { as_.clamp(0.42, 0.85) },
             al.clamp(0.7, 0.82),
             1.0,
         );
@@ -152,41 +142,15 @@ fn wpal(acc: Rgba, light: bool, style: WidgetStyle, glass: bool, flat: bool) -> 
     let sat = if s < 0.08 { s } else { s.clamp(0.42, 0.9) };
     let google = style == WidgetStyle::Google;
     let outline = style == WidgetStyle::Outline;
-    let fg = if light {
-        Rgba::hex("#15151a").unwrap()
-    } else {
-        Rgba::hex("#F6F5F4").unwrap()
-    };
+    let fg = if light { Rgba::hex("#15151a").unwrap() } else { Rgba::hex("#F6F5F4").unwrap() };
     let k = 1.0;
     let card = if outline {
         crate::color::TRANSPARENT
     } else if google {
         if light {
-            Rgba::hsla(
-                hue,
-                if sat < 0.08 { sat } else { sat * 0.6 },
-                0.91,
-                if flat {
-                    1.0
-                } else if glass {
-                    0.78 * k
-                } else {
-                    0.92 * k
-                },
-            )
+            Rgba::hsla(hue, if sat < 0.08 { sat } else { sat * 0.6 }, 0.91, if flat { 1.0 } else if glass { 0.78 * k } else { 0.92 * k })
         } else {
-            Rgba::hsla(
-                hue,
-                if sat < 0.08 { sat } else { sat * 0.34 },
-                0.15,
-                if flat {
-                    1.0
-                } else if glass {
-                    0.66 * k
-                } else {
-                    0.88 * k
-                },
-            )
+            Rgba::hsla(hue, if sat < 0.08 { sat } else { sat * 0.34 }, 0.15, if flat { 1.0 } else if glass { 0.66 * k } else { 0.88 * k })
         }
     } else if light {
         if flat {
@@ -207,59 +171,31 @@ fn wpal(acc: Rgba, light: bool, style: WidgetStyle, glass: bool, flat: bool) -> 
     WPal {
         light,
         fg,
-        fg2: if light {
-            Rgba::hex("#33333c").unwrap()
-        } else {
-            Rgba::hex("#c8c8cc").unwrap()
-        },
-        fg3: if light {
-            Rgba::hex("#55555f").unwrap()
-        } else {
-            Rgba::hex("#8a8a8f").unwrap()
-        },
-        fg4: if light {
-            Rgba::hex("#6d6d78").unwrap()
-        } else {
-            Rgba::hex("#6a6a70").unwrap()
-        },
+        fg2: if light { Rgba::hex("#33333c").unwrap() } else { Rgba::hex("#c8c8cc").unwrap() },
+        fg3: if light { Rgba::hex("#55555f").unwrap() } else { Rgba::hex("#8a8a8f").unwrap() },
+        fg4: if light { Rgba::hex("#6d6d78").unwrap() } else { Rgba::hex("#6a6a70").unwrap() },
         track: rgba(v, v, v, if light { 0.14 } else { 0.13 }),
         chip: rgba(v, v, v, 0.08),
         chip_hover: rgba(v, v, v, 0.16),
         primary: if google {
-            if light {
-                Rgba::hsla(hue, sat, 0.34, 1.0)
-            } else {
-                Rgba::hsla(hue, sat, 0.78, 1.0)
-            }
+            if light { Rgba::hsla(hue, sat, 0.34, 1.0) } else { Rgba::hsla(hue, sat, 0.78, 1.0) }
         } else {
             fg
         },
         ink_on: if google {
-            if light {
-                crate::color::WHITE
-            } else {
-                Rgba::hsla(hue, sat.min(0.5), 0.12, 1.0)
-            }
+            if light { crate::color::WHITE } else { Rgba::hsla(hue, sat.min(0.5), 0.12, 1.0) }
         } else if light {
             Rgba::hex("#F6F5F4").unwrap()
         } else {
             Rgba::hex("#0d0d0d").unwrap()
         },
-        warn: if light {
-            Rgba::hex("#c0392b").unwrap()
-        } else {
-            Rgba::hex("#e06c75").unwrap()
-        },
+        warn: if light { Rgba::hex("#c0392b").unwrap() } else { Rgba::hex("#e06c75").unwrap() },
         tertiary: if light {
             Rgba::hsla((hue + 0.5) % 1.0, 0.5, 0.45, 1.0)
         } else {
             Rgba::hsla((hue + 0.5) % 1.0, 0.55, 0.72, 1.0)
         },
-        ink_tertiary: if light {
-            crate::color::WHITE
-        } else {
-            Rgba::hsla((hue + 0.5) % 1.0, 0.5, 0.14, 1.0)
-        },
+        ink_tertiary: if light { crate::color::WHITE } else { Rgba::hsla((hue + 0.5) % 1.0, 0.5, 0.14, 1.0) },
         shape_fill: if outline {
             rgba(v, v, v, 0.08)
         } else if light {
@@ -275,13 +211,7 @@ fn wpal(acc: Rgba, light: bool, style: WidgetStyle, glass: bool, flat: bool) -> 
         } else {
             rgba(1.0, 1.0, 1.0, if glass { 0.10 } else { 0.06 })
         },
-        radius: if google {
-            30.0
-        } else if outline {
-            20.0
-        } else {
-            26.0
-        },
+        radius: if google { 30.0 } else if outline { 20.0 } else { 26.0 },
         shine: style == WidgetStyle::Shadow && glass && !light,
     }
 }
@@ -294,12 +224,7 @@ pub fn accent_from_pixels(px: &[[u8; 3]]) -> Rgba {
     let mut grey = 0f32;
     let mut lsum = 0f32;
     for p in px {
-        let c = rgba(
-            p[0] as f32 / 255.0,
-            p[1] as f32 / 255.0,
-            p[2] as f32 / 255.0,
-            1.0,
-        );
+        let c = rgba(p[0] as f32 / 255.0, p[1] as f32 / 255.0, p[2] as f32 / 255.0, 1.0);
         let (h, s, l) = c.hsl();
         lsum += l;
         let w = s * (1.0 - (2.0 * l - 1.0).abs());

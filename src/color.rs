@@ -36,6 +36,7 @@ impl Rgba {
         }
     }
 
+
     /// Qt.hsla: hue, saturation and lightness all in 0..1.
     pub fn hsla(h: f32, s: f32, l: f32, a: f32) -> Rgba {
         let h = h.rem_euclid(1.0);
@@ -44,11 +45,7 @@ impl Rgba {
         if s <= 0.0 {
             return rgba(l, l, l, a);
         }
-        let q = if l < 0.5 {
-            l * (1.0 + s)
-        } else {
-            l + s - l * s
-        };
+        let q = if l < 0.5 { l * (1.0 + s) } else { l + s - l * s };
         let p = 2.0 * l - q;
         let f = |t: f32| {
             let t = t.rem_euclid(1.0);
@@ -74,11 +71,7 @@ impl Rgba {
         if d < 1e-4 {
             return (-1.0, 0.0, l);
         }
-        let s = if l > 0.5 {
-            d / (2.0 - max - min)
-        } else {
-            d / (max + min)
-        };
+        let s = if l > 0.5 { d / (2.0 - max - min) } else { d / (max + min) };
         let h = if max == self.r {
             (self.g - self.b) / d + if self.g < self.b { 6.0 } else { 0.0 }
         } else if max == self.g {
@@ -94,20 +87,12 @@ impl Rgba {
     }
 
     pub fn mul_alpha(self, k: f32) -> Rgba {
-        Rgba {
-            a: self.a * k,
-            ..self
-        }
+        Rgba { a: self.a * k, ..self }
     }
 
     /// Qt.lighter(c, f) works in HSV value; this is close enough for the palettes.
     pub fn lighter(self, f: f32) -> Rgba {
-        rgba(
-            (self.r * f).min(1.0),
-            (self.g * f).min(1.0),
-            (self.b * f).min(1.0),
-            self.a,
-        )
+        rgba((self.r * f).min(1.0), (self.g * f).min(1.0), (self.b * f).min(1.0), self.a)
     }
 
     pub fn mix(self, o: Rgba, t: f32) -> Rgba {

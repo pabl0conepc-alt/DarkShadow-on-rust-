@@ -5,9 +5,7 @@ use std::os::fd::AsRawFd;
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, Stdio};
 
-use smithay_client_toolkit::reexports::calloop::{
-    Interest, Mode, PostAction, RegistrationToken, generic::Generic,
-};
+use smithay_client_toolkit::reexports::calloop::{Interest, Mode, PostAction, RegistrationToken, generic::Generic};
 
 use crate::app::App;
 
@@ -25,10 +23,7 @@ pub fn spawn(argv: &[&str]) {
         return;
     }
     let mut c = Command::new(argv[0]);
-    c.args(&argv[1..])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    c.args(&argv[1..]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     // SAFETY: setsid is async-signal-safe.
     unsafe {
         c.pre_exec(|| {
@@ -93,9 +88,7 @@ pub fn capture(app: &mut App, argv: &[&str], done: impl FnOnce(&mut App, String)
                     return Ok(PostAction::Remove);
                 }
                 Ok(n) => buf.extend_from_slice(&tmp[..n]),
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    return Ok(PostAction::Continue);
-                }
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => return Ok(PostAction::Continue),
                 Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
                 Err(_) => {
                     if let Some(mut c) = child.take() {
@@ -136,10 +129,7 @@ pub fn stream(
     on_end: impl FnOnce(&mut App) + 'static,
 ) -> Option<Stream> {
     let mut c = Command::new(argv[0]);
-    c.args(&argv[1..])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null());
+    c.args(&argv[1..]).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null());
     // SAFETY: prctl is async-signal-safe; the child dies with the shell.
     unsafe {
         c.pre_exec(|| {
@@ -154,44 +144,39 @@ pub fn stream(
     let mut on_end = Some(on_end);
     let token = app
         .lh
-        .insert_source(
-            Generic::new(out, Interest::READ, Mode::Level),
-            move |_, f, app| {
-                let mut tmp = [0u8; 16384];
-                loop {
-                    // SAFETY: the pipe is not dropped here.
-                    match unsafe { f.get_mut() }.read(&mut tmp) {
-                        Ok(0) => {
-                            if let Some(e) = on_end.take() {
-                                e(app);
-                            }
-                            return Ok(PostAction::Remove);
+        .insert_source(Generic::new(out, Interest::READ, Mode::Level), move |_, f, app| {
+            let mut tmp = [0u8; 16384];
+            loop {
+                // SAFETY: the pipe is not dropped here.
+                match unsafe { f.get_mut() }.read(&mut tmp) {
+                    Ok(0) => {
+                        if let Some(e) = on_end.take() {
+                            e(app);
                         }
-                        Ok(n) => {
-                            acc.extend_from_slice(&tmp[..n]);
-                            while let Some(p) = acc.iter().position(|&b| b == b'\n') {
-                                let line: Vec<u8> = acc.drain(..=p).collect();
-                                let s = String::from_utf8_lossy(&line[..line.len() - 1]);
-                                on_line(app, &s);
-                            }
-                            if acc.len() > 1 << 20 {
-                                acc.clear();
-                            }
+                        return Ok(PostAction::Remove);
+                    }
+                    Ok(n) => {
+                        acc.extend_from_slice(&tmp[..n]);
+                        while let Some(p) = acc.iter().position(|&b| b == b'\n') {
+                            let line: Vec<u8> = acc.drain(..=p).collect();
+                            let s = String::from_utf8_lossy(&line[..line.len() - 1]);
+                            on_line(app, &s);
                         }
-                        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                            return Ok(PostAction::Continue);
-                        }
-                        Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                        Err(_) => {
-                            if let Some(e) = on_end.take() {
-                                e(app);
-                            }
-                            return Ok(PostAction::Remove);
+                        if acc.len() > 1 << 20 {
+                            acc.clear();
                         }
                     }
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => return Ok(PostAction::Continue),
+                    Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(_) => {
+                        if let Some(e) = on_end.take() {
+                            e(app);
+                        }
+                        return Ok(PostAction::Remove);
+                    }
                 }
-            },
-        )
+            }
+        })
         .ok()?;
     Some(Stream { child, token })
 }
@@ -204,10 +189,7 @@ pub fn background<T: Send + 'static>(
 ) {
     use std::any::Any;
     if app.svc.bg_tx.is_none() {
-        let (tx, rx) = smithay_client_toolkit::reexports::calloop::channel::channel::<(
-            u64,
-            Box<dyn Any + Send>,
-        )>();
+        let (tx, rx) = smithay_client_toolkit::reexports::calloop::channel::channel::<(u64, Box<dyn Any + Send>)>();
         let _ = app.lh.insert_source(rx, |ev, _, app| {
             if let smithay_client_toolkit::reexports::calloop::channel::Event::Msg((id, v)) = ev
                 && let Some(d) = app.svc.bg_done.remove(&id)
@@ -239,10 +221,7 @@ pub fn background<T: Send + 'static>(
 /// A helper program that lives as long as the shell (it gets SIGTERM when the shell goes).
 pub fn bound(argv: &[&str]) -> Option<Child> {
     let mut c = Command::new(argv[0]);
-    c.args(&argv[1..])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    c.args(&argv[1..]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     // SAFETY: prctl is async-signal-safe.
     unsafe {
         c.pre_exec(|| {
@@ -255,18 +234,11 @@ pub fn bound(argv: &[&str]) -> Option<Child> {
 
 /// Is a program with this command line already running (for this user)?
 pub fn running(cmdline: &str) -> bool {
-    let Ok(rd) = std::fs::read_dir("/proc") else {
-        return false;
-    };
+    let Ok(rd) = std::fs::read_dir("/proc") else { return false };
     let me = unsafe { libc::getuid() };
     for e in rd.flatten() {
         let p = e.path();
-        if !e
-            .file_name()
-            .to_string_lossy()
-            .chars()
-            .all(|c| c.is_ascii_digit())
-        {
+        if !e.file_name().to_string_lossy().chars().all(|c| c.is_ascii_digit()) {
             continue;
         }
         use std::os::unix::fs::MetadataExt;
@@ -274,10 +246,7 @@ pub fn running(cmdline: &str) -> bool {
             continue;
         }
         if let Ok(cl) = std::fs::read(p.join("cmdline")) {
-            let s: String = cl
-                .iter()
-                .map(|&b| if b == 0 { ' ' } else { b as char })
-                .collect();
+            let s: String = cl.iter().map(|&b| if b == 0 { ' ' } else { b as char }).collect();
             if s.trim() == cmdline || s.contains(cmdline) {
                 return true;
             }

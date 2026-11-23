@@ -17,40 +17,20 @@ pub struct Capture {
 
 fn stamp() -> String {
     let t = crate::clock::now();
-    format!(
-        "{}-{:02}-{:02}_{:02}-{:02}-{:02}",
-        t.year,
-        t.mon + 1,
-        t.mday,
-        t.hour,
-        t.min,
-        t.sec
-    )
+    format!("{}-{:02}-{:02}_{:02}-{:02}-{:02}", t.year, t.mon + 1, t.mday, t.hour, t.min, t.sec)
 }
 
 fn dir(kind: &str) -> PathBuf {
     let home = crate::config::home();
-    let base = home.join(if kind == "video" {
-        "Videos"
-    } else {
-        "Pictures"
-    });
-    let d = if kind == "video" {
-        base.join("Recordings")
-    } else {
-        base.join("Screenshots")
-    };
+    let base = home.join(if kind == "video" { "Videos" } else { "Pictures" });
+    let d = if kind == "video" { base.join("Recordings") } else { base.join("Screenshots") };
     let _ = std::fs::create_dir_all(&d);
     d
 }
 
 /// The name of the shell's screen for grim -o / wf-recorder -o.
 fn main_output_name(app: &App) -> Option<String> {
-    app.svc
-        .main_output
-        .as_ref()
-        .and_then(|o| app.outputs.info(o))
-        .and_then(|i| i.name)
+    app.svc.main_output.as_ref().and_then(|o| app.outputs.info(o)).and_then(|i| i.name)
 }
 
 /// `region` | `full` | `window` (the focused window on Hyprland).
@@ -66,11 +46,7 @@ pub fn shot(app: &mut App, what: &str) {
     let cmd = match what {
         "region" => {
             if !proc::which("slurp") {
-                crate::actions::system_notice(
-                    app,
-                    "Screenshot",
-                    "slurp is not installed (needed to pick a region)",
-                );
+                crate::actions::system_notice(app, "Screenshot", "slurp is not installed (needed to pick a region)");
                 return;
             }
             format!("g=$(slurp -d 2>/dev/null) && grim -g \"$g\" {}", q(&f))
@@ -78,15 +54,7 @@ pub fn shot(app: &mut App, what: &str) {
         "window" if app.st.wm.kind == crate::state::WmKind::Hyprland => {
             let geo = crate::svc::hypr::request(app, "j/activewindow")
                 .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
-                .and_then(|v| {
-                    Some(format!(
-                        "{},{} {}x{}",
-                        v["at"][0].as_i64()?,
-                        v["at"][1].as_i64()?,
-                        v["size"][0].as_i64()?,
-                        v["size"][1].as_i64()?
-                    ))
-                });
+                .and_then(|v| Some(format!("{},{} {}x{}", v["at"][0].as_i64()?, v["at"][1].as_i64()?, v["size"][0].as_i64()?, v["size"][1].as_i64()?)));
             match geo {
                 Some(g) => format!("grim -g '{g}' {}", q(&f)),
                 None => format!("grim {}", q(&f)),
@@ -98,36 +66,21 @@ pub fn shot(app: &mut App, what: &str) {
         },
     };
     // a moment for the panels to fade before the picture is taken
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_millis(260)),
-        move |_, _, app: &mut App| {
-            let file = file.clone();
-            proc::capture(app, &["sh", "-c", &cmd], move |app, _| {
-                if !file.is_file() {
-                    return; // cancelled (Esc in slurp)
-                }
-                let p = file.to_string_lossy().into_owned();
-                if proc::which("wl-copy") {
-                    proc::sh(&format!(
-                        "wl-copy --type image/png < '{}'",
-                        p.replace('\'', "'\\''")
-                    ));
-                }
-                let id = notice(
-                    app,
-                    "Screenshot saved",
-                    &format!(
-                        "{} · copied",
-                        file.file_name()
-                            .map(|n| n.to_string_lossy().into_owned())
-                            .unwrap_or_default()
-                    ),
-                );
-                crate::svc::images::load_notif_icon(app, id, p);
-            });
-            TimeoutAction::Drop
-        },
-    );
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(260)), move |_, _, app: &mut App| {
+        let file = file.clone();
+        proc::capture(app, &["sh", "-c", &cmd], move |app, _| {
+            if !file.is_file() {
+                return; // cancelled (Esc in slurp)
+            }
+            let p = file.to_string_lossy().into_owned();
+            if proc::which("wl-copy") {
+                proc::sh(&format!("wl-copy --type image/png < '{}'", p.replace('\'', "'\\''")));
+            }
+            let id = notice(app, "Screenshot saved", &format!("{} · copied", file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()));
+            crate::svc::images::load_notif_icon(app, id, p);
+        });
+        TimeoutAction::Drop
+    });
 }
 
 fn notice(app: &mut App, summary: &str, body: &str) -> u32 {
@@ -184,20 +137,12 @@ pub fn record(app: &mut App, what: &str) {
                 crate::shell::restart_clock(app);
                 watch(app);
             }
-            Err(e) => crate::actions::system_notice(
-                app,
-                "Recording",
-                &format!("wf-recorder did not start: {e}"),
-            ),
+            Err(e) => crate::actions::system_notice(app, "Recording", &format!("wf-recorder did not start: {e}")),
         }
     };
     if region {
         if !proc::which("slurp") {
-            crate::actions::system_notice(
-                app,
-                "Recording",
-                "slurp is not installed (needed to pick a region)",
-            );
+            crate::actions::system_notice(app, "Recording", "slurp is not installed (needed to pick a region)");
             return;
         }
         proc::capture(app, &["slurp", "-d"], move |app, out| {
@@ -213,23 +158,20 @@ pub fn record(app: &mut App, what: &str) {
 
 /// A recorder that quit by itself (the screen went away, an error) still ends the recording.
 fn watch(app: &mut App) {
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_secs(2)),
-        |_, _, app: &mut App| {
-            if !app.st.rec.on {
-                return TimeoutAction::Drop;
-            }
-            let gone = match app.svc.capture.child.as_mut() {
-                Some(c) => c.try_wait().map(|s| s.is_some()).unwrap_or(true),
-                None => true,
-            };
-            if gone {
-                finish(app);
-                return TimeoutAction::Drop;
-            }
-            TimeoutAction::ToDuration(Duration::from_secs(2))
-        },
-    );
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_secs(2)), |_, _, app: &mut App| {
+        if !app.st.rec.on {
+            return TimeoutAction::Drop;
+        }
+        let gone = match app.svc.capture.child.as_mut() {
+            Some(c) => c.try_wait().map(|s| s.is_some()).unwrap_or(true),
+            None => true,
+        };
+        if gone {
+            finish(app);
+            return TimeoutAction::Drop;
+        }
+        TimeoutAction::ToDuration(Duration::from_secs(2))
+    });
 }
 
 pub fn stop(app: &mut App) {
@@ -240,18 +182,15 @@ pub fn stop(app: &mut App) {
             libc::kill(c.id() as i32, libc::SIGINT);
         }
     }
-    let _ = app.lh.insert_source(
-        Timer::from_duration(Duration::from_millis(400)),
-        |_, _, app: &mut App| {
-            if let Some(c) = app.svc.capture.child.as_mut()
-                && c.try_wait().map(|s| s.is_none()).unwrap_or(false)
-            {
-                return TimeoutAction::ToDuration(Duration::from_millis(300));
-            }
-            finish(app);
-            TimeoutAction::Drop
-        },
-    );
+    let _ = app.lh.insert_source(Timer::from_duration(Duration::from_millis(400)), |_, _, app: &mut App| {
+        if let Some(c) = app.svc.capture.child.as_mut()
+            && c.try_wait().map(|s| s.is_none()).unwrap_or(false)
+        {
+            return TimeoutAction::ToDuration(Duration::from_millis(300));
+        }
+        finish(app);
+        TimeoutAction::Drop
+    });
 }
 
 fn finish(app: &mut App) {
@@ -262,26 +201,13 @@ fn finish(app: &mut App) {
         return;
     }
     app.st.rec.on = false;
-    let secs = app
-        .st
-        .rec
-        .since
-        .take()
-        .map(|s| s.elapsed().as_secs())
-        .unwrap_or(0);
+    let secs = app.st.rec.since.take().map(|s| s.elapsed().as_secs()).unwrap_or(0);
     let path = std::mem::take(&mut app.st.rec.path);
     app.mark(topic::REC);
     crate::shell::restart_clock(app);
     if std::path::Path::new(&path).is_file() {
-        let name = std::path::Path::new(&path)
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        crate::actions::system_notice(
-            app,
-            "Recording saved",
-            &format!("{name} · {}", crate::ui::fmt_time(secs as f64)),
-        );
+        let name = std::path::Path::new(&path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        crate::actions::system_notice(app, "Recording saved", &format!("{name} · {}", crate::ui::fmt_time(secs as f64)));
     } else {
         crate::actions::system_notice(app, "Recording", "Nothing was recorded.");
     }

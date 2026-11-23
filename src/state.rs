@@ -95,11 +95,7 @@ impl Media {
         {
             p += now.saturating_duration_since(at).as_secs_f64();
         }
-        if self.length_us > 0 {
-            p.min(self.length_us as f64 / 1e6)
-        } else {
-            p
-        }
+        if self.length_us > 0 { p.min(self.length_us as f64 / 1e6) } else { p }
     }
     pub fn fraction(&self, now: Instant) -> f32 {
         if self.length_us <= 0 {
@@ -306,10 +302,8 @@ impl Wall {
         if self.lum.len() < Self::LW * Self::LH || sw <= 0.0 || sh <= 0.0 {
             return 0.3;
         }
-        let cx =
-            |v: f32| ((v / sw * Self::LW as f32) as isize).clamp(0, Self::LW as isize - 1) as usize;
-        let cy =
-            |v: f32| ((v / sh * Self::LH as f32) as isize).clamp(0, Self::LH as isize - 1) as usize;
+        let cx = |v: f32| ((v / sw * Self::LW as f32) as isize).clamp(0, Self::LW as isize - 1) as usize;
+        let cy = |v: f32| ((v / sh * Self::LH as f32) as isize).clamp(0, Self::LH as isize - 1) as usize;
         let (x0, x1, y0, y1) = (cx(x), cx(x + w), cy(y), cy(y + h));
         let mut s = 0.0;
         let mut n = 0.0;
