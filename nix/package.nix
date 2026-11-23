@@ -16,6 +16,7 @@
   slurp,
   wf-recorder,
   wl-clipboard,
+  cliphist,
 }:
 
 rustPlatform.buildRustPackage {
@@ -43,7 +44,7 @@ rustPlatform.buildRustPackage {
     # grim / slurp / wf-recorder / wl-copy (screenshots and recording)
     wrapProgram $out/bin/dshell \
       --set-default DSHELL_SHARE $out/share/dshell \
-      --suffix PATH : ${lib.makeBinPath [ wireplumber pulseaudio cava curl fontconfig xdg-utils grim slurp wf-recorder wl-clipboard ]}
+      --suffix PATH : ${lib.makeBinPath [ wireplumber pulseaudio cava curl fontconfig xdg-utils grim slurp wf-recorder wl-clipboard cliphist ]}
   '';
 
   meta = {

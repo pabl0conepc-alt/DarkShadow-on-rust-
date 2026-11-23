@@ -45,6 +45,7 @@ pub struct Services {
     pub capture: capture::Capture,
     pub tray: tray::Tray,
     pub sec_ticker: bool,
+    pub clip_watch: Option<std::process::Child>,
     pub seek_preview: Option<f32>,
     pub island_hovered: bool,
     pub ptr_on_bar: bool,
@@ -62,6 +63,10 @@ pub fn start(app: &mut App) {
     weather::start(app);
     sysmon::start(app);
     load_user(app);
+    // the clipboard history: cliphist stores what you copy while the shell runs
+    if crate::proc::which("cliphist") && crate::proc::which("wl-paste") && !crate::proc::running("wl-paste --watch cliphist") {
+        app.svc.clip_watch = crate::proc::bound(&["wl-paste", "--watch", "cliphist", "store"]);
+    }
     app.mark(topic::ALL);
 }
 

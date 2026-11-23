@@ -45,6 +45,7 @@ blur = true
 "mod+n" = "spawn dshell toggle control"
 "mod+a" = "spawn dshell toggle control"
 "mod+w" = "spawn dshell toggle picker"
+"mod+v" = "spawn dshell toggle clipboard"
 "mod+alt+w" = "spawn dshell edit"
 "mod+alt+d" = "spawn dshell toggle today"
 "mod+u" = "spawn dshell toggle settings"

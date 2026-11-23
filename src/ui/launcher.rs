@@ -29,11 +29,12 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
     // the search field
     let (fx, fy, fw, fh) = (x + 14.0, y + 14.0, w - 28.0, 50.0);
     cv.rrect(fx, fy, fw, fh, fh / 2.0, p.card);
-    cv.icon("search", fx + 26.0, fy + fh / 2.0, 22.0, p.primary);
+    cv.icon(if l.clip_mode { "edit" } else { "search" }, fx + 26.0, fy + fh / 2.0, 22.0, p.primary);
     let q = &l.query;
     if q.is_empty() {
         cv.rrect(fx + 50.0, fy + 14.0, 2.0, fh - 28.0, 1.0, p.primary);
-        cv.text(fx + 58.0, fy + fh / 2.0, "Search apps, or type a command", Face::Regular, 15.0, p.dim, Align::Left);
+        let hint = if l.clip_mode { "Search the clipboard" } else { "Search apps, or type a command" };
+        cv.text(fx + 58.0, fy + fh / 2.0, hint, Face::Regular, 15.0, p.dim, Align::Left);
     } else {
         let tw = cv.text_max(fx + 50.0, fy + fh / 2.0, q, Face::Medium, 15.0, p.fg, Align::Left, fw - 110.0);
         cv.rrect(fx + 51.0 + tw, fy + 14.0, 2.0, fh - 28.0, 1.0, p.primary);
@@ -48,10 +49,35 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
     if l.results.is_empty() {
         cv.shape(Shape::Cookie(9), x + w / 2.0, ly + 80.0, 34.0, 0.0, p.container);
         cv.icon("search", x + w / 2.0, ly + 80.0, 30.0, p.ink_container);
-        let msg = if q.is_empty() { "No apps found".to_string() } else { format!("Press Enter to run “{q}”") };
+        let msg = if l.clip_mode {
+            "Nothing copied yet".to_string()
+        } else if q.is_empty() {
+            "No apps found".to_string()
+        } else {
+            format!("Press Enter to run “{q}”")
+        };
         cv.text(x + w / 2.0, ly + 140.0, &msg, Face::Medium, 14.0, p.dim, Align::Center);
     }
-    for (row, &idx) in l.results.iter().enumerate().skip(l.top).take(rows) {
+    if l.clip_mode {
+        for (row, &idx) in l.results.iter().enumerate().skip(l.top).take(rows) {
+            let Some((_, shown)) = l.clip.get(idx) else { continue };
+            let ry = ly + (row - l.top) as f32 * row_h;
+            let sel = row == l.sel;
+            let hov = hits.add(x + 10.0, ry, w - 20.0, row_h - 4.0, Act::Launch(idx));
+            if sel {
+                cv.rrect(x + 10.0, ry, w - 20.0, row_h - 4.0, 18.0, p.container);
+            } else if hov {
+                cv.rrect(x + 10.0, ry, w - 20.0, row_h - 4.0, 18.0, rgba(1.0, 1.0, 1.0, 0.05));
+            }
+            let icy = ry + (row_h - 4.0) / 2.0;
+            let image = shown.contains("binary data");
+            cv.shape(Shape::Cookie(7), x + 42.0, icy, 17.0, 0.0, p.card_hi);
+            cv.icon(if image { "image" } else { "edit" }, x + 42.0, icy, 18.0, if sel { p.ink_container } else { p.fg });
+            let text = if image { "Image".to_string() } else { shown.replace(['\n', '\r'], " ") };
+            cv.text_max(x + 72.0, icy, &text, Face::Medium, 13.5, if sel { p.ink_container } else { p.fg }, Align::Left, w - 110.0);
+        }
+    }
+    for (row, &idx) in l.results.iter().enumerate().skip(l.top).take(if l.clip_mode { 0 } else { rows }) {
         let Some(e) = ctx.apps.get(idx) else { continue };
         let ry = ly + (row - l.top) as f32 * row_h;
         let sel = row == l.sel;

@@ -80,10 +80,43 @@ pub fn close_card(app: &mut App) {
 }
 
 pub fn open_launcher(app: &mut App) {
-    if app.has(Kind::Launcher) {
+    if app.has(Kind::Launcher) && !app.ui.launcher.clip_mode {
         close_launcher(app);
         return;
     }
+    app.destroy(Kind::Launcher);
+    app.ui.launcher.clip_mode = false;
+    app.ui.launcher.clip.clear();
+    show_launcher(app);
+}
+
+/// The clipboard history (cliphist), in the launcher's window.
+pub fn open_clipboard(app: &mut App) {
+    if app.has(Kind::Launcher) && app.ui.launcher.clip_mode {
+        close_launcher(app);
+        return;
+    }
+    if !crate::proc::which("cliphist") {
+        system_notice(app, "Clipboard", "cliphist is not installed (it keeps the history)");
+        return;
+    }
+    crate::proc::capture(app, &["cliphist", "list"], |app, out| {
+        app.ui.launcher.clip = out
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .take(300)
+            .map(|l| {
+                let shown = l.split_once('\t').map(|x| x.1).unwrap_or(l).trim().to_string();
+                (l.to_string(), shown)
+            })
+            .collect();
+        app.destroy(Kind::Launcher);
+        app.ui.launcher.clip_mode = true;
+        show_launcher(app);
+    });
+}
+
+fn show_launcher(app: &mut App) {
     close_others(app, Kind::Launcher);
     app.svc.apps.ensure();
     let l = &mut app.ui.launcher;
@@ -125,6 +158,14 @@ pub fn close_launcher(app: &mut App) {
 
 pub fn filter_apps(app: &mut App) {
     let q = app.ui.launcher.query.trim().to_lowercase();
+    if app.ui.launcher.clip_mode {
+        let l = &mut app.ui.launcher;
+        l.results = l.clip.iter().enumerate().filter(|(_, c)| q.is_empty() || c.1.to_lowercase().contains(&q)).map(|(i, _)| i).collect();
+        l.sel = 0;
+        l.top = 0;
+        app.mark_kind(Kind::Launcher);
+        return;
+    }
     let usage = &app.saved.app_usage;
     let mut v: Vec<(i32, u32, usize)> = app
         .svc
@@ -882,6 +923,15 @@ fn open_settings(app: &mut App) {
 }
 
 fn launch(app: &mut App, i: usize) {
+    if app.ui.launcher.clip_mode {
+        // put that entry back on the clipboard
+        if let Some((line, _)) = app.ui.launcher.clip.get(i).cloned() {
+            let q = line.replace('\'', "'\\''");
+            crate::proc::sh(&format!("printf '%s' '{q}' | cliphist decode | wl-copy"));
+        }
+        close_launcher(app);
+        return;
+    }
     let Some(e) = app.svc.apps.list.get(i).cloned() else { return };
     let term = app.cfg.apps.terminal.clone();
     let cmd = crate::svc::apps::command(&e, &term);
@@ -1333,6 +1383,7 @@ fn panel_kind(name: &str) -> Option<&'static str> {
         "control" | "cc" | "controlcenter" | "notifications" => "control",
         "power" | "session" => "power",
         "picker" | "wallpaper" | "wallpapers" => "picker",
+        "clipboard" | "clip" => "clipboard",
         "settings" | "config" => "settings",
         "today" | "dashboard" | "calendar" => "today",
         "system" => "system",
@@ -1348,6 +1399,7 @@ fn is_open(app: &App, p: &str) -> bool {
         "power" => app.has(Kind::Power),
         "picker" => app.has(Kind::Picker),
         "settings" => app.has(Kind::Settings),
+        "clipboard" => app.has(Kind::Launcher) && app.ui.launcher.clip_mode,
         "today" => app.has(Kind::Card) && app.ui.card.mode == CardMode::Today,
         "system" => app.has(Kind::Card) && app.ui.card.mode == CardMode::System,
         "player" => app.has(Kind::Card) && app.ui.card.mode == CardMode::Player,
@@ -1362,6 +1414,7 @@ fn toggle_panel(app: &mut App, p: &str) {
         "power" => toggle_power(app),
         "picker" => toggle_picker(app),
         "settings" => toggle_settings(app),
+        "clipboard" => open_clipboard(app),
         "today" => open_card(app, CardMode::Today, true),
         "system" => open_card(app, CardMode::System, true),
         "player" => open_card(app, CardMode::Player, true),

@@ -321,6 +321,10 @@ pub struct LauncherUi {
     pub top: usize,
     pub results: Vec<usize>,
     pub rev: Reveal,
+    /// false: apps; true: the clipboard history
+    pub clip_mode: bool,
+    /// cliphist lines: (the whole line, what it shows)
+    pub clip: Vec<(String, String)>,
 }
 
 pub struct ControlUi {
@@ -425,7 +429,7 @@ impl Ui {
                 left_at: None,
                 notif: None,
             },
-            launcher: LauncherUi { query: String::new(), sel: 0, top: 0, results: Vec::new(), rev: Reveal::new(320, 160) },
+            launcher: LauncherUi { query: String::new(), sel: 0, top: 0, results: Vec::new(), rev: Reveal::new(320, 160), clip_mode: false, clip: Vec::new() },
             control: ControlUi { tab: 0, rev: Reveal::new(380, 200), scroll: 0.0, view: 0, pw_for: None, pw: String::new() },
             power: Reveal::new(300, 160),
             power_sel: 0,

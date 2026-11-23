@@ -217,3 +217,40 @@ pub fn background<T: Send + 'static>(
         })
         .ok();
 }
+
+/// A helper program that lives as long as the shell (it gets SIGTERM when the shell goes).
+pub fn bound(argv: &[&str]) -> Option<Child> {
+    let mut c = Command::new(argv[0]);
+    c.args(&argv[1..]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    // SAFETY: prctl is async-signal-safe.
+    unsafe {
+        c.pre_exec(|| {
+            libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
+            Ok(())
+        });
+    }
+    c.spawn().ok()
+}
+
+/// Is a program with this command line already running (for this user)?
+pub fn running(cmdline: &str) -> bool {
+    let Ok(rd) = std::fs::read_dir("/proc") else { return false };
+    let me = unsafe { libc::getuid() };
+    for e in rd.flatten() {
+        let p = e.path();
+        if !e.file_name().to_string_lossy().chars().all(|c| c.is_ascii_digit()) {
+            continue;
+        }
+        use std::os::unix::fs::MetadataExt;
+        if std::fs::metadata(&p).map(|m| m.uid() != me).unwrap_or(true) {
+            continue;
+        }
+        if let Ok(cl) = std::fs::read(p.join("cmdline")) {
+            let s: String = cl.iter().map(|&b| if b == 0 { ' ' } else { b as char }).collect();
+            if s.trim() == cmdline || s.contains(cmdline) {
+                return true;
+            }
+        }
+    }
+    false
+}

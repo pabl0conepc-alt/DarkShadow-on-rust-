@@ -30,11 +30,11 @@ fi
 if [ "$DEPS" = 1 ]; then
   say "Installing build and runtime packages"
   if command -v pacman >/dev/null; then
-    sudo pacman -S --needed --noconfirm rust pkgconf wayland libxkbcommon dbus wireplumber libpulse cava curl fontconfig xdg-utils grim slurp wf-recorder wl-clipboard
+    sudo pacman -S --needed --noconfirm rust pkgconf wayland libxkbcommon dbus wireplumber libpulse cava curl fontconfig xdg-utils grim slurp wf-recorder wl-clipboard cliphist
   elif command -v dnf >/dev/null; then
-    sudo dnf install -y cargo rust pkgconf-pkg-config wayland-devel libxkbcommon-devel dbus-devel wireplumber pulseaudio-utils cava curl fontconfig xdg-utils grim slurp wf-recorder wl-clipboard
+    sudo dnf install -y cargo rust pkgconf-pkg-config wayland-devel libxkbcommon-devel dbus-devel wireplumber pulseaudio-utils cava curl fontconfig xdg-utils grim slurp wf-recorder wl-clipboard cliphist
   elif command -v apt-get >/dev/null; then
-    sudo apt-get install -y cargo pkg-config libwayland-dev libxkbcommon-dev libdbus-1-dev wireplumber pulseaudio-utils cava curl fontconfig xdg-utils grim slurp wf-recorder wl-clipboard
+    sudo apt-get install -y cargo pkg-config libwayland-dev libxkbcommon-dev libdbus-1-dev wireplumber pulseaudio-utils cava curl fontconfig xdg-utils grim slurp wf-recorder wl-clipboard cliphist
   else
     echo "Unknown package manager: install cargo, pkg-config, wayland, libxkbcommon, dbus, wireplumber, pactl, cava, curl yourself."
   fi
