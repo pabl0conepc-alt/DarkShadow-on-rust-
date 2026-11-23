@@ -32,6 +32,7 @@ fn module_width(cv: &mut Canvas, ctx: &Ctx, m: &str) -> f32 {
                 0.0
             }
         }
+        "tray" => st.tray.len() as f32 * 30.0,
         "workspaces" => {
             if st.wm.kind == WmKind::None {
                 0.0
@@ -220,6 +221,23 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
         match m.as_str() {
             "island" | "clock" => anim |= island(cv, ctx, ui, hits, x, y, mw, bh, squeeze),
             "workspaces" => workspaces(cv, ctx, hits, x, cy, mw),
+            "tray" => {
+                for (i, t) in st_tray(ctx).iter().enumerate() {
+                    let ix = x + i as f32 * 30.0;
+                    let hov = hits.add(ix, y + 3.0, 30.0, bh - 6.0, Act::TrayClick(t.key.clone()));
+                    hits.with_right(Act::TrayMenu(t.key.clone()));
+                    if hov {
+                        cv.circle(ix + 15.0, cy, (bh - 8.0) / 2.0, p.card_hi);
+                    }
+                    match &t.icon {
+                        Some(img) => cv.image_rrect(img, ix + 6.0, cy - 9.0, 18.0, 18.0, 3.0),
+                        None => {
+                            cv.circle(ix + 15.0, cy, 9.0, p.container);
+                            cv.text(ix + 15.0, cy, &t.letter, Face::Bold, 10.0, p.ink_container, Align::Center);
+                        }
+                    }
+                }
+            }
             "title" => {
                 hits.add(x, y, mw, bh, Act::None);
                 cv.text_max(x + 8.0, cy, &ctx.st.wm.title, Face::Medium, 13.0, p.dim, Align::Left, mw - 16.0);
@@ -544,6 +562,10 @@ fn island(cv: &mut Canvas, ctx: &Ctx, ui: &Ui, hits: &mut Hits, x: f32, y: f32, 
         }
     }
     anim
+}
+
+fn st_tray<'a>(ctx: &'a Ctx) -> &'a [crate::state::TrayIcon] {
+    &ctx.st.tray
 }
 
 fn now_phase(ctx: &Ctx) -> f32 {

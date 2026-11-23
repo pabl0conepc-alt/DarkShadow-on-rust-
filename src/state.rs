@@ -24,6 +24,7 @@ pub mod topic {
     pub const SECOND: u32 = 1 << 14;
     pub const USER: u32 = 1 << 15;
     pub const REC: u32 = 1 << 16;
+    pub const TRAY: u32 = 1 << 17;
     pub const ALL: u32 = !0;
 }
 
@@ -321,9 +322,19 @@ pub struct Rec {
     pub path: String,
 }
 
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct TrayIcon {
+    pub key: String,
+    pub title: String,
+    pub icon: Option<Rc<Image>>,
+    pub letter: String,
+}
+
 #[derive(Default)]
 pub struct State {
     pub rec: Rec,
+    pub tray: Vec<TrayIcon>,
     pub wm: Wm,
     pub audio: Audio,
     pub media: Media,

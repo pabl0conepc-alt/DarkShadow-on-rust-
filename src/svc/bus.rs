@@ -72,7 +72,8 @@ pub fn start(app: &mut App) {
             "type='signal',sender='org.freedesktop.DBus',interface='org.freedesktop.DBus',member='NameOwnerChanged',arg0namespace='org.mpris.MediaPlayer2'",
         );
         watch(app, &c, false);
-        app.svc.bus.session = Some(c);
+        app.svc.bus.session = Some(c.clone());
+        crate::svc::tray::start(app, &c);
         if app.cfg.notifications.enabled {
             own_notifications(app);
         }
@@ -141,11 +142,13 @@ fn on_session(app: &mut App, c: &Rc<LocalConnection>, m: &Message) {
         MessageType::MethodCall => {
             if m.path().as_deref() == Some(NOTIF_PATH) {
                 notif_call(app, c, m);
+            } else if crate::svc::tray::call(app, c, m) {
             } else {
                 let _ = c.channel().send(unknown(m));
             }
         }
         MessageType::Signal => {
+            crate::svc::tray::signal(app, c, m);
             let member = m.member().map(|s| s.to_string()).unwrap_or_default();
             let sender = m.sender().map(|s| s.to_string()).unwrap_or_default();
             match member.as_str() {
@@ -349,7 +352,7 @@ fn apply_props(app: &mut App, props: &PropMap, partial: bool) {
     crate::shell::media_changed(app);
 }
 
-fn unwrap_variant<'a>(v: &'a (dyn RefArg + 'a)) -> &'a (dyn RefArg + 'a) {
+pub fn unwrap_variant<'a>(v: &'a (dyn RefArg + 'a)) -> &'a (dyn RefArg + 'a) {
     if let Some(mut it) = v.as_iter()
         && v.signature().starts_with('v')
         && let Some(inner) = it.next()

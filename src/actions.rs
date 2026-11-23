@@ -744,6 +744,9 @@ pub fn act(app: &mut App, a: Act) {
         Act::CfgSet(k, v) => crate::settings::set(app, k, toml::Value::String(v)),
         Act::CfgSlide(_) => {}
         Act::RecStop => crate::svc::capture::stop(app),
+        Act::TrayClick(k) => crate::svc::tray::click(app, &k, 1, 0, 0),
+        Act::TrayMenu(k) => crate::svc::tray::click(app, &k, 2, 0, 0),
+        Act::TrayAlt(k) => crate::svc::tray::click(app, &k, 3, 0, 0),
         Act::CcView(v) => {
             let was = app.ui.control.view;
             app.ui.control.view = v;

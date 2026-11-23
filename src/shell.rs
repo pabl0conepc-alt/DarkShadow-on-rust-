@@ -170,7 +170,8 @@ pub fn build(app: &mut App) {
                 | topic::WEATHER
                 | topic::VIZ
                 | topic::TOGGLES
-                | topic::REC,
+                | topic::REC
+                | topic::TRAY,
             fps: 0,
         });
     }

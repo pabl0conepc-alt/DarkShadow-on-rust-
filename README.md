@@ -27,6 +27,7 @@ A ilha dinâmica vira o volume, o microfone, o brilho, o workspace ou o carregad
 ![Ilha: volume](docs/screenshots/island-volume.png)
 ![Barra no Hyprland](docs/screenshots/bar-hyprland.png)
 ![Ilha gravando a tela](docs/screenshots/island-recording.png)
+![Tray na barra](docs/screenshots/tray.png)
 
 > As capturas vieram do `dshell` rodando de verdade (sway headless, renderização por software, com um player MPRIS de teste). O blur atrás dos cartões aparece no Hyprland/driftwm com as regras de `config/`.
 
@@ -63,6 +64,7 @@ Binário: ~8 MiB (4 MiB são a fonte Google Sans Flex embutida). Primeiro quadro
 
 | Parte | Como no DarkShadow's Shell |
 |---|---|
+| **Tray** | ícones dos apps (StatusNotifierItem) na barra: o `dshell` é o watcher (ou usa o de outro programa); clique esquerdo ativa o app, direito abre o menu dele, os ícones somem quando o app fecha |
 | **Barra** | estilo `island` (uma pílula no meio, padrão), `dynamic` (uma pílula por lado) ou `flat`; topo ou base; auto-ocultar; módulos: energia, launcher (o buraco negro), workspaces (pontos ou números), título da janela, ilha, mídia, rede, Bluetooth, volume (roda do mouse = volume), bateria, notificações |
 | **Ilha dinâmica** | é o relógio (+ clima e uma mini onda quando toca música); vira volume/microfone/brilho (arrastável, onda), workspace e carregador; passe o mouse com música tocando e o player cresce dela; clique: Hoje; clique direito: Sistema; notificações aparecem como cartão saindo dela com uma onda que vai acabando |
 | **Hoje / Sistema** | dia, clima, o dia como onda, calendário do mês; CPU, GPU (ou temperatura), RAM em anéis ondulados e o disco |
@@ -80,7 +82,7 @@ Binário: ~8 MiB (4 MiB são a fonte Google Sans Flex embutida). Primeiro quadro
 ### Diferenças do original (e por quê)
 
 - **Configurações:** a janela de Configurações cobre as opções do shell; o que ela não mostra (módulos da barra, posições exatas, comandos) fica no `config.toml`, recarregado ao salvar. Ainda não há busca nas configurações.
-- **Ainda não feito:** dock, task view, game bar, área de transferência, tray (StatusNotifierItem), letras de música, sons de interface, tela de bloqueio própria (usa hyprlock/swaylock), tema do SDDM, intro de boas-vindas.
+- **Ainda não feito:** dock, task view, game bar, área de transferência, letras de música, sons de interface, tela de bloqueio própria (usa hyprlock/swaylock), tema do SDDM, intro de boas-vindas.
 - **Compositores:** Hyprland e driftwm (no driftwm os bookmarks fazem o papel de workspaces). niri não é suportado.
 - **Ícones:** os Material Symbols usados vêm embutidos como vetores (sem precisar da fonte instalada).
 
@@ -202,6 +204,7 @@ cargo test
 cargo run --release --example drawbench     # tempo de cada primitiva de desenho
 cargo run --release --example mpris_mock    # um player MPRIS falso para testar a mídia
 cargo run --release --example sysbus_mock   # NetworkManager + BlueZ falsos (com DBUS_SYSTEM_BUS_ADDRESS)
+cargo run --release --example sni_mock      # dois ícones de tray falsos
 ```
 
 ## Créditos

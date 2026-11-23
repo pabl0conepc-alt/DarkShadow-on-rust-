@@ -135,7 +135,7 @@ impl Default for BarCfg {
             opacity: 0.72,
             left: vec!["power".into(), "launcher".into(), "workspaces".into()],
             center: vec!["island".into()],
-            right: vec!["network".into(), "bluetooth".into(), "volume".into(), "battery".into(), "notifications".into()],
+            right: vec!["tray".into(), "network".into(), "bluetooth".into(), "volume".into(), "battery".into(), "notifications".into()],
             workspaces: 5,
             ws_style: "dots".into(),
             seconds: false,

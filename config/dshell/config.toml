@@ -29,11 +29,11 @@ position = "bottom"          # top | bottom
 style = "island"             # island (one pill) | dynamic (a pill per side) | flat (full width)
 height = 38
 opacity = 0.72
-# modules: power launcher workspaces title island media network bluetooth volume battery notifications
+# modules: power launcher workspaces title island media tray network bluetooth volume battery notifications
 #          settings wallpaper
 left = ["power", "launcher", "workspaces"]
 center = ["island"]
-right = ["network", "bluetooth", "volume", "battery", "notifications"]
+right = ["tray", "network", "bluetooth", "volume", "battery", "notifications"]
 workspaces = 5
 ws_style = "dots"            # dots | numbers
 seconds = false
