@@ -278,8 +278,46 @@ pub fn toggle_settings(app: &mut App) {
     });
 }
 
+/// A tray app's menu above (or below) its icon.
+pub fn open_tray_menu(app: &mut App, service: String, path: String, entries: Vec<crate::svc::tray::MenuEntry>, x: i32) {
+    close_others(app, Kind::Menu);
+    app.destroy(Kind::Menu);
+    let h = crate::ui::menu::height(&entries) as u32;
+    let w = 280u32;
+    app.ui.menu = crate::ui::MenuUi { service, path, entries, rev: crate::anim::Reveal::new(200, 140) };
+    app.ui.menu.rev.set(true, Instant::now());
+    let top = bar_top(app);
+    let bh = if app.cfg.bar.enabled { crate::shell::bar_height(app) as i32 - 8 } else { 8 };
+    let sw = app.svc.main_output.as_ref().and_then(|o| app.outputs.info(o)).and_then(|i| i.logical_size).map(|s| s.0).unwrap_or(1920);
+    let left = (x - w as i32 / 2 - SHADOW).clamp(0, (sw - w as i32 - 2 * SHADOW).max(0));
+    app.open(Spec {
+        kind: Kind::Menu,
+        layer: Layer::Top,
+        ns: "dshell-menu",
+        anchor: if top { Anchor::TOP } else { Anchor::BOTTOM } | Anchor::LEFT,
+        size: (w + 2 * SHADOW as u32, h + 2 * SHADOW as u32),
+        exclusive: -1,
+        margin: if top { (bh, 0, 0, left) } else { (0, 0, bh, left) },
+        kb: KeyboardInteractivity::OnDemand,
+        output: app.svc.main_output.clone(),
+        topics: topic::THEME,
+        fps: 0,
+    });
+}
+
+fn close_menu(app: &mut App) {
+    if app.has(Kind::Menu) {
+        app.ui.menu.rev.set(false, Instant::now());
+        app.mark_kind(Kind::Menu);
+    }
+}
+
 fn close_others(app: &mut App, keep: Kind) {
     let now = Instant::now();
+    if keep != Kind::Menu && app.has(Kind::Menu) {
+        app.ui.menu.rev.set(false, now);
+        app.mark_kind(Kind::Menu);
+    }
     if keep != Kind::Settings && app.has(Kind::Settings) {
         app.ui.settings.rev.set(false, now);
         app.mark_kind(Kind::Settings);
@@ -745,7 +783,15 @@ pub fn act(app: &mut App, a: Act) {
         Act::CfgSlide(_) => {}
         Act::RecStop => crate::svc::capture::stop(app),
         Act::TrayClick(k) => crate::svc::tray::click(app, &k, 1, 0, 0),
-        Act::TrayMenu(k) => crate::svc::tray::click(app, &k, 2, 0, 0),
+        Act::TrayMenu(k) => {
+            let x = app.ui.last_press_x as i32;
+            crate::svc::tray::click(app, &k, 2, x, 0)
+        }
+        Act::MenuPick(id) => {
+            let (s, p) = (app.ui.menu.service.clone(), app.ui.menu.path.clone());
+            crate::svc::tray::menu_event(app, &s, &p, id);
+            close_menu(app);
+        }
         Act::TrayAlt(k) => crate::svc::tray::click(app, &k, 3, 0, 0),
         Act::CcView(v) => {
             let was = app.ui.control.view;
@@ -1104,6 +1150,7 @@ fn save_widget_pos(app: &mut App, w: WidgetId) {
 
 pub fn focus_lost(app: &mut App, kind: Kind) {
     match kind {
+        Kind::Menu => close_menu(app),
         Kind::Control => {
             if app.has(Kind::Control) {
                 toggle_control(app);
@@ -1150,6 +1197,7 @@ pub fn key(app: &mut App, ev: &KeyEvent) {
             Kind::Picker => toggle_picker(app),
             Kind::Card => close_card(app),
             Kind::Settings => toggle_settings(app),
+            Kind::Menu => close_menu(app),
             _ => {}
         }
         return;
@@ -1526,8 +1574,12 @@ pub fn command(app: &mut App, line: &str) -> String {
                 "power" => Kind::Power,
                 "picker" => Kind::Picker,
                 "settings" => Kind::Settings,
+                "menu" => Kind::Menu,
                 _ => return "error: panel".into(),
             };
+            if a.get(4) == Some(&"right") {
+                return app.debug_right(kind, x.parse().unwrap_or(0.0), y.parse().unwrap_or(0.0));
+            }
             let wheel = a.get(4).and_then(|w| w.parse::<f32>().ok()).unwrap_or(0.0);
             return app.debug_click(kind, x.parse().unwrap_or(0.0), y.parse().unwrap_or(0.0), wheel);
         }

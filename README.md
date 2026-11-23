@@ -29,6 +29,8 @@ A ilha dinâmica vira o volume, o microfone, o brilho, o workspace ou o carregad
 ![Ilha gravando a tela](docs/screenshots/island-recording.png)
 ![Tray na barra](docs/screenshots/tray.png)
 
+![Menu de um app do tray](docs/screenshots/tray-menu.png)
+
 > As capturas vieram do `dshell` rodando de verdade (sway headless, renderização por software, com um player MPRIS de teste). O blur atrás dos cartões aparece no Hyprland/driftwm com as regras de `config/`.
 
 ---
@@ -64,7 +66,7 @@ Binário: ~8 MiB (4 MiB são a fonte Google Sans Flex embutida). Primeiro quadro
 
 | Parte | Como no DarkShadow's Shell |
 |---|---|
-| **Tray** | ícones dos apps (StatusNotifierItem) na barra: o `dshell` é o watcher (ou usa o de outro programa); clique esquerdo ativa o app, direito abre o menu dele, os ícones somem quando o app fecha |
+| **Tray** | ícones dos apps (StatusNotifierItem) na barra: o `dshell` é o watcher (ou usa o de outro programa); clique esquerdo ativa o app; o direito abre o menu do app (dbusmenu: marcas, submenus, itens desabilitados) desenhado pelo próprio shell; os ícones somem quando o app fecha |
 | **Barra** | estilo `island` (uma pílula no meio, padrão), `dynamic` (uma pílula por lado) ou `flat`; topo ou base; auto-ocultar; módulos: energia, launcher (o buraco negro), workspaces (pontos ou números), título da janela, ilha, mídia, rede, Bluetooth, volume (roda do mouse = volume), bateria, notificações |
 | **Ilha dinâmica** | é o relógio (+ clima e uma mini onda quando toca música); vira volume/microfone/brilho (arrastável, onda), workspace e carregador; passe o mouse com música tocando e o player cresce dela; clique: Hoje; clique direito: Sistema; notificações aparecem como cartão saindo dela com uma onda que vai acabando |
 | **Hoje / Sistema** | dia, clima, o dia como onda, calendário do mês; CPU, GPU (ou temperatura), RAM em anéis ondulados e o disco |

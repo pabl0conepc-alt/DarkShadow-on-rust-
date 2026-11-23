@@ -5,6 +5,7 @@ pub mod bar;
 pub mod card;
 pub mod control;
 pub mod launcher;
+pub mod menu;
 pub mod picker;
 pub mod settings;
 pub mod power;
@@ -88,6 +89,7 @@ pub enum Kind {
     Power,
     Picker,
     Settings,
+    Menu,
     Widget(WidgetId),
     Viz,
 }
@@ -169,6 +171,7 @@ pub enum Act {
     TrayClick(String),
     TrayMenu(String),
     TrayAlt(String),
+    MenuPick(i32),
     WifiPick(String),
     WifiScan,
     BtPick(String),
@@ -348,6 +351,13 @@ pub struct SettingsUi {
     pub write_armed: bool,
 }
 
+pub struct MenuUi {
+    pub service: String,
+    pub path: String,
+    pub entries: Vec<crate::svc::tray::MenuEntry>,
+    pub rev: Reveal,
+}
+
 pub struct FocusUi {
     pub running: bool,
     pub on_break: bool,
@@ -380,6 +390,9 @@ pub struct Ui {
     pub power_sel: usize,
     pub picker: PickerUi,
     pub settings: SettingsUi,
+    pub menu: MenuUi,
+    /// where the last button press was (surface x), for placing menus
+    pub last_press_x: f32,
     pub focus: FocusUi,
     pub bar_rev: Reveal,
     pub edit: bool,
@@ -416,6 +429,8 @@ impl Ui {
             control: ControlUi { tab: 0, rev: Reveal::new(380, 200), scroll: 0.0, view: 0, pw_for: None, pw: String::new() },
             power: Reveal::new(300, 160),
             power_sel: 0,
+            menu: MenuUi { service: String::new(), path: String::new(), entries: Vec::new(), rev: Reveal::new(200, 140) },
+            last_press_x: 0.0,
             settings: SettingsUi { page: 0, scroll: 0.0, rev: Reveal::new(340, 180), pending: Vec::new(), write_armed: false },
             picker: PickerUi {
                 sel: 0,

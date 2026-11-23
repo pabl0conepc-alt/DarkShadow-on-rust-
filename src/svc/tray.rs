@@ -29,6 +29,21 @@ pub struct Item {
     pub status: String,
     pub icon: Option<Rc<Image>>,
     pub icon_name: String,
+    /// the dbusmenu object of the item ("" or "/" when it has none)
+    pub menu: String,
+}
+
+/// One line of a tray menu.
+#[derive(Clone, Debug)]
+pub struct MenuEntry {
+    pub id: i32,
+    pub label: String,
+    pub depth: u8,
+    pub enabled: bool,
+    pub separator: bool,
+    /// None: no check; Some(on)
+    pub check: Option<bool>,
+    pub submenu: bool,
 }
 
 #[derive(Default)]
@@ -84,6 +99,7 @@ fn add(app: &mut App, c: &Rc<LocalConnection>, arg: &str, sender: &str) {
         status: String::new(),
         icon: None,
         icon_name: String::new(),
+        menu: String::new(),
     };
     app.svc.tray.items.push(item);
     // read it a moment later: an app that registers synchronously cannot answer us before our reply
@@ -125,6 +141,7 @@ fn read(app: &mut App, c: &Rc<LocalConnection>, item: &mut Item) -> bool {
     item.title = s("Title");
     item.status = s("Status");
     item.icon_name = s("IconName");
+    item.menu = props.get("Menu").and_then(|v| v.0.as_str().map(str::to_string)).unwrap_or_default();
     let theme_path = s("IconThemePath");
     item.icon = None;
     // a named icon from the theme first (sharper), else the pixels the app sends
@@ -320,6 +337,14 @@ fn owner_of(c: &Rc<LocalConnection>, name: &str) -> String {
 pub fn click(app: &mut App, key: &str, button: u8, x: i32, y: i32) {
     let Some(c) = app.svc.bus.session.clone() else { return };
     let Some(it) = app.svc.tray.items.iter().find(|i| format!("{}{}", i.service, i.path) == key).cloned() else { return };
+    // the right button: our own menu from the app's dbusmenu, when it has one
+    if button == 2 && !it.menu.is_empty() && it.menu != "/" {
+        let entries = menu_layout(&c, &it.service, &it.menu);
+        if !entries.is_empty() {
+            crate::actions::open_tray_menu(app, it.service.clone(), it.menu.clone(), entries, x);
+            return;
+        }
+    }
     let method = match button {
         2 => "ContextMenu",
         3 => "SecondaryActivate",
@@ -331,3 +356,105 @@ pub fn click(app: &mut App, key: &str, button: u8, x: i32, y: i32) {
     }
 }
 
+
+fn label_of(props: &PropMap) -> String {
+    // "_File" -> "File" (mnemonics), "__" -> "_"
+    let raw = props.get("label").and_then(|v| v.0.as_str()).unwrap_or("");
+    let mut out = String::new();
+    let mut chars = raw.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '_' {
+            if chars.peek() == Some(&'_') {
+                out.push('_');
+                chars.next();
+            }
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+fn walk(node: &dyn RefArg, depth: u8, out: &mut Vec<MenuEntry>) {
+    let node = crate::svc::bus::unwrap_variant(node);
+    let Some(parts) = node.as_iter().map(|i| i.collect::<Vec<&dyn RefArg>>()) else { return };
+    if parts.len() < 3 {
+        return;
+    }
+    let id = parts[0].as_i64().unwrap_or(0) as i32;
+    let mut props = PropMap::new();
+    if let Some(mut it) = parts[1].as_iter() {
+        while let (Some(k), Some(v)) = (it.next(), it.next()) {
+            if let Some(k) = k.as_str() {
+                props.insert(k.to_string(), dbus::arg::Variant(crate::svc::bus::unwrap_variant(v).box_clone()));
+            }
+        }
+    }
+    let flag = |k: &str, d: bool| props.get(k).and_then(|v| v.0.as_u64().or_else(|| v.0.as_i64().map(|x| x as u64))).map(|x| x != 0).unwrap_or(d);
+    let children: Vec<&dyn RefArg> = parts[2].as_iter().map(|i| i.collect()).unwrap_or_default();
+    if depth > 0 {
+        if !flag("visible", true) {
+            return;
+        }
+        let separator = props.get("type").and_then(|v| v.0.as_str()) == Some("separator");
+        let check = match props.get("toggle-type").and_then(|v| v.0.as_str()) {
+            Some("checkmark") | Some("radio") => Some(props.get("toggle-state").and_then(|v| v.0.as_i64()).unwrap_or(0) == 1),
+            _ => None,
+        };
+        out.push(MenuEntry {
+            id,
+            label: label_of(&props),
+            depth: depth - 1,
+            enabled: flag("enabled", true),
+            separator,
+            check,
+            submenu: !children.is_empty(),
+        });
+    }
+    if depth < 3 {
+        for ch in children {
+            walk(ch, depth + 1, out);
+        }
+    }
+}
+
+/// The app's menu, flattened (submenus indented below their parent).
+pub fn menu_layout(c: &Rc<LocalConnection>, service: &str, path: &str) -> Vec<MenuEntry> {
+    let p = c.with_proxy(service, path, T);
+    let _: Result<(bool,), _> = p.method_call("com.canonical.dbusmenu", "AboutToShow", (0i32,));
+    let r: Result<Message, _> = (|| {
+        let m = Message::new_method_call(service, path, "com.canonical.dbusmenu", "GetLayout")?
+            .append3(0i32, -1i32, Vec::<String>::new());
+        c.channel().send_with_reply_and_block(m, T).map_err(|e| e.to_string())
+    })();
+    let mut out = Vec::new();
+    if let Ok(reply) = r {
+        let mut it = reply.iter_init();
+        it.next(); // revision
+        if let Some(layout) = it.get_refarg() {
+            walk(&*layout, 0, &mut out);
+        }
+    }
+    // no separators at the ends or twice in a row
+    let mut clean: Vec<MenuEntry> = Vec::new();
+    for e in out {
+        if e.separator && clean.last().map(|l| l.separator).unwrap_or(true) {
+            continue;
+        }
+        clean.push(e);
+    }
+    while clean.last().map(|l| l.separator).unwrap_or(false) {
+        clean.pop();
+    }
+    clean
+}
+
+/// A menu line was picked.
+pub fn menu_event(app: &mut App, service: &str, path: &str, id: i32) {
+    let Some(c) = app.svc.bus.session.clone() else { return };
+    if let Ok(m) = Message::new_method_call(service, path, "com.canonical.dbusmenu", "Event") {
+        let ts = crate::clock::unix() as u32;
+        let _ = c.channel().send(m.append3(id, "clicked", dbus::arg::Variant(0i32)).append1(ts));
+        c.channel().flush();
+    }
+}

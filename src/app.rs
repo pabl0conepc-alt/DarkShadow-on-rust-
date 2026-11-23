@@ -368,6 +368,7 @@ impl App {
             Kind::Power => ui::power::draw(&mut cv, &ctx, ui, &mut hits),
             Kind::Picker => ui::picker::draw(&mut cv, &ctx, ui, &mut hits),
             Kind::Settings => ui::settings::draw(&mut cv, &ctx, ui, &mut hits),
+            Kind::Menu => ui::menu::draw(&mut cv, &ctx, ui, &mut hits),
             Kind::Widget(w) => ui::widgets::draw(&mut cv, &ctx, ui, &mut hits, w),
             Kind::Viz => ui::widgets::draw_viz(&mut cv, &ctx, ui),
         };
@@ -475,7 +476,7 @@ impl App {
             }
             app.gfx.trim_layers();
             // no panel open: the glyph and icon caches go too (they refill in microseconds)
-            if !app.surfs.iter().any(|s| matches!(s.kind, Kind::Launcher | Kind::Control | Kind::Card | Kind::Power | Kind::Picker | Kind::Settings)) {
+            if !app.surfs.iter().any(|s| matches!(s.kind, Kind::Launcher | Kind::Control | Kind::Card | Kind::Power | Kind::Picker | Kind::Settings | Kind::Menu)) {
                 app.gfx.trim();
             }
             if app.cfg.performance.trim_memory {
@@ -512,6 +513,7 @@ impl App {
             return "nothing there".into();
         };
         let r = format!("{:?}", h.act);
+        self.ui.last_press_x = x;
         if wheel != 0.0 && h.scroll != Act::None {
             ui::scroll(self, &h.scroll, wheel);
         } else if wheel != 0.0 {
@@ -522,6 +524,17 @@ impl App {
         } else {
             ui::act(self, h.act.clone());
         }
+        self.flush();
+        r
+    }
+
+    /// Testing without a mouse: the right button.
+    pub fn debug_right(&mut self, kind: Kind, x: f32, y: f32) -> String {
+        let Some(i) = self.surfs.iter().position(|s| s.kind == kind) else { return "no such surface".into() };
+        let Some(h) = self.hit_at(i, x, y).cloned() else { return "nothing there".into() };
+        self.ui.last_press_x = x;
+        let r = format!("{:?}", h.right);
+        ui::act(self, h.right.clone());
         self.flush();
         r
     }
@@ -586,6 +599,7 @@ impl App {
             }
             PointerEventKind::Press { button, serial, .. } => {
                 self.ptr.serial = *serial;
+                self.ui.last_press_x = x;
                 let hit = self.hit_at(i, x, y).cloned();
                 if let Some(h) = hit {
                     self.ptr.pressed = Some((kind, h.id, *button));
@@ -954,7 +968,7 @@ pub fn run() -> Result<(), String> {
                     .surfs
                     .iter()
                     .map(|s| s.kind)
-                    .filter(|k| matches!(k, Kind::Launcher | Kind::Control | Kind::Card | Kind::Power | Kind::Picker | Kind::Settings))
+                    .filter(|k| matches!(k, Kind::Launcher | Kind::Control | Kind::Card | Kind::Power | Kind::Picker | Kind::Settings | Kind::Menu))
                     .collect();
                 for k in panels {
                     app.destroy(k);

@@ -51,12 +51,44 @@ fn main() {
                     p.insert("Title".into(), v(if first { "Chat".to_string() } else { "Calc".to_string() }));
                     p.insert("Status".into(), v("Active".to_string()));
                     if first {
+                        p.insert("Menu".into(), v(dbus::Path::new("/MenuBar").unwrap()));
                         p.insert("IconName".into(), v(String::new()));
                         p.insert("IconPixmap".into(), v(pixels()));
                     } else {
                         p.insert("IconName".into(), v("libreoffice-calc".to_string()));
                     }
                     m.method_return().append1(p)
+                }
+                "AboutToShow" => m.method_return().append1(false),
+                "GetLayout" => {
+                    type Node = (i32, PropMap, Vec<Variant<Box<dyn RefArg>>>);
+                    fn node(id: i32, props: Vec<(&str, Box<dyn RefArg>)>, kids: Vec<Node>) -> Node {
+                        let mut p = PropMap::new();
+                        for (k, val) in props {
+                            p.insert(k.into(), Variant(val));
+                        }
+                        (id, p, kids.into_iter().map(|k| Variant(Box::new(k) as Box<dyn RefArg>)).collect())
+                    }
+                    let lab = |s: &str| -> (&str, Box<dyn RefArg>) { ("label", Box::new(s.to_string())) };
+                    let root = node(0, vec![], vec![
+                        node(1, vec![lab("_Open Chat")], vec![]),
+                        node(2, vec![("type", Box::new("separator".to_string()))], vec![]),
+                        node(3, vec![lab("Do not disturb"), ("toggle-type", Box::new("checkmark".to_string())), ("toggle-state", Box::new(1i32))], vec![]),
+                        node(4, vec![lab("Status"), ("children-display", Box::new("submenu".to_string()))], vec![
+                            node(5, vec![lab("Online"), ("toggle-type", Box::new("radio".to_string())), ("toggle-state", Box::new(1i32))], vec![]),
+                            node(6, vec![lab("Away"), ("toggle-type", Box::new("radio".to_string())), ("toggle-state", Box::new(0i32))], vec![]),
+                        ]),
+                        node(7, vec![lab("Hidden"), ("visible", Box::new(false))], vec![]),
+                        node(8, vec![lab("Disabled thing"), ("enabled", Box::new(false))], vec![]),
+                        node(9, vec![("type", Box::new("separator".to_string()))], vec![]),
+                        node(10, vec![lab("_Quit")], vec![]),
+                    ]);
+                    m.method_return().append2(7u32, root)
+                }
+                "Event" => {
+                    let (id, what): (i32, String) = m.read2().unwrap_or_default();
+                    println!("menu event {what} on item {id}");
+                    m.method_return()
                 }
                 "Activate" | "ContextMenu" | "SecondaryActivate" => {
                     println!("{member} on {dest}");
