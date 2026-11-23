@@ -33,6 +33,8 @@ const HELP: &str = "dshell — DarkShadow's Shell (Rust)
   dshell scheme <auto|grey|navy|mono|slate|...|violet|#rrggbb>
   dshell notifs clear|dnd|test
   dshell ws <n>|next|prev     go to a workspace (Hyprland) / bookmark (driftwm)
+  dshell shot region|full|window          screenshot (saved and copied)
+  dshell record region|full|full-sound|stop   screen recording (again to stop)
   dshell edit                 move the desktop widgets with the mouse (again to finish)
   dshell gaming               gaming mode: no motion, no blur, no visualizer
   dshell focus toggle|reset|skip

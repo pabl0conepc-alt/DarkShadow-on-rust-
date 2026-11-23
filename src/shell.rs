@@ -169,7 +169,8 @@ pub fn build(app: &mut App) {
                 | topic::THEME
                 | topic::WEATHER
                 | topic::VIZ
-                | topic::TOGGLES,
+                | topic::TOGGLES
+                | topic::REC,
             fps: 0,
         });
     }
@@ -247,20 +248,42 @@ pub fn move_widget(app: &mut App, w: WidgetId) {
 // ------------------------------------------------------------------ clock
 
 fn clock_tick(app: &mut App) {
-    let secs = app.cfg.bar.seconds || app.ui.focus.running;
-    let d = crate::clock::until_next(secs);
-    let _ = app.lh.insert_source(Timer::from_duration(d), |_, _, app: &mut App| {
-        let secs = app.cfg.bar.seconds || app.ui.focus.running;
-        let tm = crate::clock::now();
+    // the minute: always, on the dot
+    let _ = app.lh.insert_source(Timer::from_duration(crate::clock::until_next(false)), |_, _, app: &mut App| {
+        app.mark(topic::CLOCK);
+        TimeoutAction::ToDuration(crate::clock::until_next(false))
+    });
+    restart_clock(app);
+}
+
+fn needs_seconds(app: &App) -> bool {
+    app.cfg.bar.seconds || app.ui.focus.running || app.st.rec.on
+}
+
+/// A second-by-second tick only while something shows seconds (the focus timer, a recording, the bar's
+/// seconds). Call it whenever one of those starts.
+pub fn restart_clock(app: &mut App) {
+    if app.svc.sec_ticker || !needs_seconds(app) {
+        return;
+    }
+    app.svc.sec_ticker = true;
+    let _ = app.lh.insert_source(Timer::from_duration(crate::clock::until_next(true)), |_, _, app: &mut App| {
+        if !needs_seconds(app) {
+            app.svc.sec_ticker = false;
+            return TimeoutAction::Drop;
+        }
         let mut t = topic::SECOND;
-        if tm.sec == 0 || app.cfg.bar.seconds {
+        if app.cfg.bar.seconds {
             t |= topic::CLOCK;
+        }
+        if app.st.rec.on {
+            t |= topic::REC;
         }
         if app.ui.focus.running {
             crate::actions::focus_tick(app);
         }
         app.mark(t);
-        TimeoutAction::ToDuration(crate::clock::until_next(secs))
+        TimeoutAction::ToDuration(crate::clock::until_next(true))
     });
 }
 

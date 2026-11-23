@@ -12,6 +12,10 @@
   curl,
   fontconfig,
   xdg-utils,
+  grim,
+  slurp,
+  wf-recorder,
+  wl-clipboard,
 }:
 
 rustPlatform.buildRustPackage {
@@ -35,10 +39,11 @@ rustPlatform.buildRustPackage {
     mkdir -p $out/share/dshell
     cp -r assets/wallpapers $out/share/dshell/
     cp -r config $out/share/dshell/
-    # wpctl / pactl (sound), cava (visualizer), curl (weather, cover art), fc-match (fallback font)
+    # wpctl / pactl (sound), cava (visualizer), curl (weather, cover art), fc-match (fallback font),
+    # grim / slurp / wf-recorder / wl-copy (screenshots and recording)
     wrapProgram $out/bin/dshell \
       --set-default DSHELL_SHARE $out/share/dshell \
-      --suffix PATH : ${lib.makeBinPath [ wireplumber pulseaudio cava curl fontconfig xdg-utils ]}
+      --suffix PATH : ${lib.makeBinPath [ wireplumber pulseaudio cava curl fontconfig xdg-utils grim slurp wf-recorder wl-clipboard ]}
   '';
 
   meta = {

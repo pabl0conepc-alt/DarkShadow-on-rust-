@@ -76,6 +76,7 @@ fn island_target(cv: &mut Canvas, ctx: &Ctx, ui: &Ui) -> f32 {
         return idle_width(cv, ctx);
     }
     match ui.island.mode {
+        IslandMode::Idle if ctx.st.rec.on => 156.0,
         IslandMode::Idle => idle_width(cv, ctx),
         IslandMode::Volume | IslandMode::Mic | IslandMode::Bright => 236.0,
         IslandMode::Ws => 176.0,
@@ -389,6 +390,27 @@ fn island(cv: &mut Canvas, ctx: &Ctx, ui: &Ui, hits: &mut Hits, x: f32, y: f32, 
         cv.rrect(x, cy - ih / 2.0, w, ih, ih / 2.0, p.container.alpha(0.9));
     }
     match mode {
+        IslandMode::Idle if st.rec.on => {
+            // the screen is being recorded: a red dot that breathes, the time, stop
+            let ih = h - 6.0;
+            cv.rrect(x, cy - ih / 2.0, w, ih, ih / 2.0, p.container.alpha(0.9));
+            let prev = cv.alpha;
+            cv.alpha *= k;
+            let red = Rgba::hex("#ff5f57").unwrap();
+            // it breathes once a second, with the clock (no extra frames while you record)
+            let secs = st.rec.since.map(|s| now.saturating_duration_since(s).as_secs()).unwrap_or(0);
+            if secs % 2 == 0 {
+                cv.circle(x + 20.0, cy, 9.0, red.alpha(0.25));
+            }
+            cv.circle(x + 20.0, cy, 5.0, red);
+            let txt = format!("{:02}:{:02}:{:02}", secs / 3600, (secs / 60) % 60, secs % 60);
+            cv.text(x + 36.0, cy, &txt, Face::Semi, 13.0, p.ink_container, Align::Left);
+            let bx = x + w - 20.0;
+            let hov = hits.add(bx - 16.0, cy - 14.0, 32.0, 28.0, Act::RecStop);
+            cv.circle(bx, cy, if hov { 13.0 } else { 12.0 }, red);
+            cv.rrect(bx - 4.5, cy - 4.5, 9.0, 9.0, 2.0, crate::color::WHITE);
+            cv.alpha = prev;
+        }
         IslandMode::Idle => {
             hits.add(x, y + 2.0, w, h - 4.0, Act::OpenCard(CardMode::Today));
             hits.with_right(Act::OpenCard(CardMode::System));

@@ -165,6 +165,7 @@ pub enum Act {
     CfgSet(&'static str, String),
     CfgSlide(&'static str),
     CcView(u8),
+    RecStop,
     WifiPick(String),
     WifiScan,
     BtPick(String),

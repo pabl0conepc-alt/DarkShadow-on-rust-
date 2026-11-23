@@ -576,6 +576,7 @@ fn focus_toggle(app: &mut App) {
         f.end = Some(now + Duration::from_secs_f64(f.left.max(1.0)));
         f.running = true;
     }
+    crate::shell::restart_clock(app);
     app.mark(topic::SECOND);
 }
 
@@ -742,6 +743,7 @@ pub fn act(app: &mut App, a: Act) {
         Act::CfgToggle(k) => crate::settings::toggle(app, k),
         Act::CfgSet(k, v) => crate::settings::set(app, k, toml::Value::String(v)),
         Act::CfgSlide(_) => {}
+        Act::RecStop => crate::svc::capture::stop(app),
         Act::CcView(v) => {
             let was = app.ui.control.view;
             app.ui.control.view = v;
@@ -1481,6 +1483,22 @@ pub fn command(app: &mut App, line: &str) -> String {
         }
         ["focus", "skip"] => {
             act(app, Act::FocusSkip);
+            Ok(())
+        }
+        ["shot"] | ["screenshot"] => {
+            crate::svc::capture::shot(app, "region");
+            Ok(())
+        }
+        ["shot", w] | ["screenshot", w] => {
+            crate::svc::capture::shot(app, w);
+            Ok(())
+        }
+        ["record"] => {
+            crate::svc::capture::record(app, "full");
+            Ok(())
+        }
+        ["record", w] => {
+            crate::svc::capture::record(app, w);
             Ok(())
         }
         ["lock"] => {

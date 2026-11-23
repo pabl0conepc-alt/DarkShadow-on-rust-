@@ -4,6 +4,7 @@
 pub mod apps;
 pub mod audio;
 pub mod bus;
+pub mod capture;
 pub mod drift;
 pub mod hypr;
 pub mod images;
@@ -40,6 +41,8 @@ pub struct Services {
     pub weather_at: Option<std::time::Instant>,
     pub weather_busy: bool,
     pub reload_armed: bool,
+    pub capture: capture::Capture,
+    pub sec_ticker: bool,
     pub seek_preview: Option<f32>,
     pub island_hovered: bool,
     pub ptr_on_bar: bool,

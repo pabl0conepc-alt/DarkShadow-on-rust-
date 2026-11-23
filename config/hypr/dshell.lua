@@ -33,6 +33,13 @@ bind("SUPER + G", "dshell gaming")
 bind("CTRL + ALT + Delete", "dshell toggle power")
 bind("SUPER + L", "dshell lock")
 
+-- screenshots and recording (press the recording key again to stop)
+bind("Print", "dshell shot region")
+bind("SHIFT + Print", "dshell shot full")
+bind("SUPER + SHIFT + S", "dshell shot region")
+bind("SUPER + SHIFT + R", "dshell record region")
+bind("SUPER + ALT + R", "dshell record full-sound")
+
 -- volume, microphone, brightness and media (shown in the island)
 bind("XF86AudioRaiseVolume", "dshell volume up", { locked = true })
 bind("XF86AudioLowerVolume", "dshell volume down", { locked = true })

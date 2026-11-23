@@ -23,6 +23,7 @@ pub mod topic {
     pub const TOGGLES: u32 = 1 << 13;
     pub const SECOND: u32 = 1 << 14;
     pub const USER: u32 = 1 << 15;
+    pub const REC: u32 = 1 << 16;
     pub const ALL: u32 = !0;
 }
 
@@ -313,8 +314,16 @@ impl Wall {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct Rec {
+    pub on: bool,
+    pub since: Option<Instant>,
+    pub path: String,
+}
+
 #[derive(Default)]
 pub struct State {
+    pub rec: Rec,
     pub wm: Wm,
     pub audio: Audio,
     pub media: Media,

@@ -278,6 +278,7 @@ pub fn set(app: &mut App, key: &str, val: toml::Value) {
     }
     crate::svc::viz::update_wanted(app);
     crate::svc::sysmon::update_wanted(app);
+    crate::shell::restart_clock(app);
     if key.starts_with("weather.") {
         app.svc.weather_at = None;
         crate::svc::weather::fetch(app);
