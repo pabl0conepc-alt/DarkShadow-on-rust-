@@ -2,7 +2,7 @@
 name = "dshell"
 version = "0.1.0"
 edition = "2024"
-description = "DarkShadow's Shell rewritten in Rust: one small native binary for Hyprland and driftwm"
+description = "DarkShadow's Shell rewritten in Rust: one small native binary for Hyprland, driftwm and VEYRON WM"
 license = "MIT"
 repository = "https://github.com/pabl0conepc-alt/DarkShadow-on-rust-"
 

@@ -51,9 +51,13 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, _ui: &mut Ui, hits: &mut Hits, id: Widge
     let hh = if edit { &mut hits_local } else { &mut *hits };
     let mut damage = None;
     let anim = match id {
-        WidgetId::Clock => clock(cv, ctx, &wp, m, m, w, h),
+        WidgetId::Clock => clock(cv, ctx, _ui, &wp, m, m, w, h),
         WidgetId::User => user(cv, ctx, &wp, m, m, w, h),
-        WidgetId::Trio => trio(cv, ctx, &wp, m, m, w, h),
+        WidgetId::Trio => {
+            // the turning cookies sit on the left and right thirds; the circle and numbers stay
+            damage = Some(vec![(m, m, w, h)]);
+            trio(cv, ctx, &wp, m, m, w, h)
+        }
         WidgetId::Focus => {
             let (cx, cy, r) = (m + w / 2.0, m + 126.0, 76.0);
             damage = Some(vec![(cx - r, cy - r, r * 2.0, r * 2.0)]);
@@ -81,23 +85,96 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, _ui: &mut Ui, hits: &mut Hits, id: Widge
 
 // ------------------------------------------------------------------ clock: two big lines
 
-fn clock(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32) -> bool {
+/// One pair of digits; a digit that just changed rolls up into place (620 ms, with a little overshoot).
+#[allow(clippy::too_many_arguments)]
+fn digits(cv: &mut Canvas, ui: &Ui, now: std::time::Instant, x: f32, cy: f32, txt: &str, offset: usize, face: Face, px: f32, col: crate::color::Rgba) -> (f32, bool) {
+    let t = crate::anim::progress(ui.clock_since, now, 620);
+    let k = crate::anim::overshoot(t);
+    let mut xx = x;
+    let mut anim = false;
+    for (i, ch) in txt.chars().enumerate() {
+        let s = ch.to_string();
+        let dw = cv.measure("0", face, px);
+        let prev = ui.clock_prev.chars().nth(offset + i);
+        let changed = prev.is_some() && prev != Some(ch) && t < 1.0;
+        let mid = xx + dw / 2.0;
+        if changed {
+            anim = true;
+            let lift = px * 0.32;
+            let old = prev.unwrap().to_string();
+            let a = cv.alpha;
+            cv.alpha = a * (1.0 - t);
+            cv.text(mid, cy - lift * t, &old, face, px, col, Align::Center);
+            cv.alpha = a * t.min(1.0);
+            cv.text(mid, cy + lift * (1.0 - k), &s, face, px, col, Align::Center);
+            cv.alpha = a;
+        } else {
+            cv.text(mid, cy, &s, face, px, col, Align::Center);
+        }
+        xx += dw - px * 0.04;
+    }
+    (xx - x + px * 0.04, anim)
+}
+
+/// The width of two digits as `digits` draws them.
+fn pair_w(cv: &mut Canvas, face: Face, px: f32) -> f32 {
+    2.0 * cv.measure("0", face, px) - px * 0.04
+}
+
+fn clock(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, wp: &WPal, x: f32, y: f32, w: f32, h: f32) -> bool {
     let tm = crate::clock::now();
-    let style = ctx.cfg.widgets.clock.style.as_str();
-    match style {
+    let now = ctx.now;
+    // the digits that just changed roll in
+    let hhmm = format!("{:02}{:02}", tm.hour, tm.min);
+    if ui.clock_shown != hhmm {
+        ui.clock_prev = if ui.clock_shown.is_empty() { hhmm.clone() } else { std::mem::take(&mut ui.clock_shown) };
+        ui.clock_shown = hhmm.clone();
+        ui.clock_since = now;
+    }
+    let (hh, mm) = hhmm.split_at(2);
+    // the hours in a light, warm tone of your theme color (dark on a light wallpaper); the minutes in white
+    let (ah, asat, _) = ctx.th.accent.hsl();
+    let tone = if wp.light {
+        crate::color::Rgba::hsla(ah.max(0.0), asat.clamp(0.25, 0.7), 0.32, 1.0)
+    } else {
+        crate::color::Rgba::hsla(ah.max(0.0), asat.clamp(0.25, 0.7), 0.86, 1.0)
+    };
+    let date = format!("{} {} {}", &weekday(tm.wday)[..3], tm.mday, &month(tm.mon)[..3]);
+    let mut anim = false;
+    match ctx.cfg.widgets.clock.style.as_str() {
         "stacked" => {
-            card(cv, ctx, wp, x, y, w, h);
-            cv.text(x + w / 2.0, y + h * 0.36, &format!("{:02}", tm.hour), Face::Numbers, 86.0, wp.fg, Align::Center);
-            cv.text(x + w / 2.0, y + h * 0.7, &format!("{:02}", tm.min), Face::Numbers, 86.0, wp.primary, Align::Center);
+            let px = 168.0;
+            let pw = pair_w(cv, Face::Black, px);
+            let cx = x + (w - pw) / 2.0;
+            anim |= digits(cv, ui, now, cx, y + 92.0, hh, 0, Face::Black, px, tone).1;
+            anim |= digits(cv, ui, now, cx, y + 92.0 + 142.0, mm, 2, Face::Black, px, wp.fg).1;
+            // the date on a small pill
+            let dw = cv.measure(&date, Face::Semi, 15.0) + 30.0;
+            cv.rrect(x + (w - dw) / 2.0, y + h - 46.0, dw, 36.0, 18.0, wp.primary);
+            cv.text(x + w / 2.0, y + h - 28.0, &date, Face::Semi, 15.0, wp.ink_on, Align::Center);
+        }
+        "tall" => {
+            // tall narrow digits, one over the other
+            let size = h * 0.52;
+            cv.text(x + w / 2.0, y + h * 0.25, hh, Face::Display, size, wp.fg, Align::Center);
+            cv.text(x + w / 2.0, y + h * 0.74, mm, Face::Display, size, wp.fg2.alpha(0.86), Align::Center);
         }
         _ => {
-            // expressive: tall narrow digits straight on the wallpaper
-            let size = h * 0.52;
-            cv.text(x + w / 2.0, y + h * 0.25, &format!("{:02}", tm.hour), Face::Display, size, wp.fg, Align::Center);
-            cv.text(x + w / 2.0, y + h * 0.74, &format!("{:02}", tm.min), Face::Display, size, wp.fg2.alpha(0.86), Align::Center);
+            // expressive: hours and minutes side by side, big and heavy, the date under them
+            let px = 176.0;
+            let pw = pair_w(cv, Face::Black, px);
+            let total = 2.0 * pw + 22.0;
+            let x0 = x + (w - total) / 2.0;
+            let cy = y + 96.0;
+            anim |= digits(cv, ui, now, x0, cy, hh, 0, Face::Black, px, tone).1;
+            anim |= digits(cv, ui, now, x0 + pw + 22.0, cy, mm, 2, Face::Black, px, wp.fg).1;
+            let a = cv.alpha;
+            cv.alpha = a * 0.92;
+            cv.text(x0 + total - 10.0, y + h - 26.0, &date, Face::Bold, 26.0, wp.fg, Align::Right);
+            cv.alpha = a;
         }
     }
-    false
+    anim
 }
 
 // ------------------------------------------------------------------ user: hi, name!
@@ -116,8 +193,7 @@ fn user(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32) -
     }
     let tm = crate::clock::now();
     let tx = ax + r + 18.0;
-    let first = u.real.split_whitespace().next().map(str::to_string).unwrap_or_else(|| u.name.clone());
-    cv.text_max(tx, ay - 20.0, &format!("Hi, {}!", first.to_lowercase()), Face::Bold, 17.0, wp.fg, Align::Left, w - (tx - x) - 12.0);
+    cv.text_max(tx, ay - 20.0, &format!("Hi, {}!", u.name), Face::Bold, 18.0, wp.fg, Align::Left, w - (tx - x) - 12.0);
     cv.text(tx, ay + 3.0, crate::clock::greeting(tm.hour), Face::Regular, 14.0, wp.fg2, Align::Left);
     cv.text_max(
         tx,
@@ -135,34 +211,37 @@ fn user(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32) -
 // ------------------------------------------------------------------ CPU · GPU · RAM in soft shapes
 
 fn trio(cv: &mut Canvas, ctx: &Ctx, wp: &WPal, x: f32, y: f32, w: f32, h: f32) -> bool {
+    // CPU and RAM in cookies that turn very slowly; the GPU in the middle, a circle in the warm color
+    // (a dash when the computer does not tell its load)
     let s = &ctx.st.sys;
-    let mut items: Vec<(&str, f32)> = vec![("CPU", s.cpu)];
-    match (s.gpu, s.temp) {
-        (Some(g), _) => items.push(("GPU", g)),
-        (None, Some(t)) => items.push(("HEAT", (t / 100.0).clamp(0.0, 1.0))),
-        _ => items.push(("DISK", s.disk)),
-    }
-    items.push(("RAM", s.ram));
-    // the busiest one stands out in the warm color
-    let hi = items.iter().enumerate().max_by(|a, b| a.1.1.partial_cmp(&b.1.1).unwrap()).map(|x| x.0).unwrap_or(1);
-    let cell = w / 3.0;
-    let r = (cell / 2.0 - 6.0).min(h / 2.0 - 4.0);
-    let rot = 0.0;
+    let gap = (w * 0.025).round();
+    let d = h.min((w - 2.0 * gap) / 3.0);
+    let r = d / 2.0;
+    let x0 = x + (w - (3.0 * d + 2.0 * gap)) / 2.0;
+    let mv = moving(ctx);
+    let rot = if mv { crate::ui::secs(ctx.now) * std::f32::consts::TAU / 60.0 } else { 0.0 };
+    let items: [(&str, Option<f32>); 3] = [("CPU", Some(s.cpu)), ("GPU", s.gpu), ("RAM", Some(s.ram))];
     for (i, (label, v)) in items.iter().enumerate() {
-        let cx = x + cell * (i as f32 + 0.5);
+        let cx = x0 + r + i as f32 * (d + gap);
         let cy = y + h / 2.0;
-        let strong = i == hi && *v > 0.25;
-        if strong {
-            cv.shape(Shape::Circle, cx, cy, r, 0.0, wp.tertiary);
+        let mid = i == 1;
+        let (ink, fill) = if mid { (wp.ink_tertiary, wp.tertiary) } else { (wp.fg, wp.shape_fill) };
+        if mid {
+            cv.circle(cx, cy, r, fill);
         } else {
-            cv.shape(Shape::Cookie(9), cx, cy, r, rot * if i == 0 { 1.0 } else { -1.0 }, wp.shape_fill);
+            cv.shape(Shape::Cookie(9), cx, cy, r, rot, fill);
         }
-        let (fg, dim) = if strong { (wp.ink_tertiary, wp.ink_tertiary.alpha(0.75)) } else { (wp.fg, wp.fg3) };
-        let txt = if *label == "HEAT" { format!("{:.0}°", s.temp.unwrap_or(0.0)) } else { format!("{}%", (v * 100.0).round()) };
-        cv.text(cx, cy - 5.0, &txt, Face::Numbers, 22.0, fg, Align::Center);
-        cv.text(cx, cy + 17.0, label, Face::Medium, 11.0, dim, Align::Center);
+        let txt = match v {
+            Some(v) => format!("{}%", (v * 100.0).round()),
+            None => "—".into(),
+        };
+        cv.text(cx, cy - d * 0.06, &txt, Face::Semi, (d * 0.24).round(), ink, Align::Center);
+        let a = cv.alpha;
+        cv.alpha = a * 0.8;
+        cv.text(cx, cy + d * 0.17, label, Face::Regular, (d * 0.12).round(), ink, Align::Center);
+        cv.alpha = a;
     }
-    false
+    mv
 }
 
 // ------------------------------------------------------------------ focus timer

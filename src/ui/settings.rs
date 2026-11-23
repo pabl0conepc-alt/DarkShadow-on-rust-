@@ -30,6 +30,7 @@ fn row_height(r: &Row) -> f32 {
         _ if r.key.is_empty() && matches!(r.ctl, Ctl::Info) => 58.0,
         Ctl::Scheme => 172.0,
         Ctl::Shape => 112.0,
+        Ctl::Clock => 236.0,
         _ => 70.0,
     }
 }
@@ -45,6 +46,7 @@ fn info_text(ctx: &Ctx, key: &str) -> String {
         "about.wm" => match ctx.st.wm.kind {
             crate::state::WmKind::Hyprland => "Hyprland".into(),
             crate::state::WmKind::Drift => "driftwm".into(),
+            crate::state::WmKind::Veyron => "VEYRON WM".into(),
             crate::state::WmKind::None => "none found".into(),
         },
         "about.memory" => {
@@ -188,7 +190,7 @@ fn draw_row(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, r: &Row, x: f32, y: f32
         Ctl::Info if !r.key.is_empty() => 360.0,
         _ => 70.0,
     };
-    let full = matches!(r.ctl, Ctl::Scheme | Ctl::Shape);
+    let full = matches!(r.ctl, Ctl::Scheme | Ctl::Shape | Ctl::Clock);
     let text_w = if full { w - 36.0 } else { (w - ctl_w - 48.0).max(120.0) };
     let ty = if full { y + 26.0 } else { y + h / 2.0 };
     if r.desc.is_empty() && !full {
@@ -246,13 +248,16 @@ fn draw_row(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, r: &Row, x: f32, y: f32
         Ctl::Scheme => {
             let cur = val.as_ref().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default();
             let per_row = ((w - 36.0) / 62.0).floor().max(1.0) as usize;
-            for (i, (key, name, hex)) in SCHEMES.iter().enumerate() {
+            let on_veyron = ctx.st.wm.kind == crate::state::WmKind::Veyron;
+            for (i, (key, name, hex)) in SCHEMES.iter().filter(|s| s.0 != "veyron" || on_veyron).enumerate() {
                 let (col, row) = (i % per_row, i / per_row);
                 let (cx, ccy) = (x + 18.0 + 22.0 + col as f32 * 62.0, y + 66.0 + row as f32 * 60.0);
                 let color = if hex.is_empty() {
                     if *key == "grey" {
                         let l = ctx.th.accent.luma().clamp(0.5, 0.75);
                         rgba(l, l, l, 1.0)
+                    } else if *key == "veyron" {
+                        ctx.st.wm.accent.unwrap_or(ctx.th.accent)
                     } else {
                         ctx.st.wall.accent.unwrap_or(ctx.th.accent)
                     }
@@ -287,6 +292,7 @@ fn draw_row(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, r: &Row, x: f32, y: f32
                 cv.text_max(cx, ccy + 32.0, name, if on { Face::Semi } else { Face::Regular }, 10.5, if on { p.fg } else { p.dim }, Align::Center, 66.0);
             }
         }
+        Ctl::Clock => clock_choice(cv, ctx, hits, r.key, val.as_ref().and_then(|v| v.as_str()).unwrap_or("tall"), x, y, w, h),
         Ctl::Button(label, act) => {
             let bw = cv.measure(label, Face::Semi, 13.0) + 32.0;
             let bx = right - bw;
@@ -297,6 +303,64 @@ fn draw_row(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, r: &Row, x: f32, y: f32
         Ctl::Info => {
             let t = info_text(ctx, r.key);
             cv.text_max(right, cy, &t, Face::Medium, 13.0, p.dim, Align::Right, 360.0);
+        }
+    }
+}
+
+/// The clock looks side by side, each drawn small the way the desktop draws it (with the current time).
+#[allow(clippy::too_many_arguments)]
+fn clock_choice(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, key: &'static str, cur: &str, x: f32, y: f32, w: f32, h: f32) {
+    const LOOKS: [(&str, &str); 3] = [("tall", "Tall"), ("expressive", "Expressive"), ("stacked", "Stacked")];
+    let p = ctx.th.pal;
+    let tm = crate::clock::now();
+    let (hh, mm) = (format!("{:02}", tm.hour), format!("{:02}", tm.min));
+    let date = format!("{} {} {}", &crate::ui::weekday(tm.wday)[..3], tm.mday, &crate::ui::month(tm.mon)[..3]);
+    // the hours in a light tone of the theme color, as on the desktop
+    let (ah, asat, _) = ctx.th.accent.hsl();
+    let tone = Rgba::hsla(ah.max(0.0), asat.clamp(0.25, 0.7), if p.fg.luma() > 0.5 { 0.86 } else { 0.32 }, 1.0);
+    let gap = 12.0;
+    let (cx0, cy0) = (x + 18.0, y + 52.0);
+    let cw = ((w - 36.0 - 2.0 * gap) / 3.0).floor();
+    let ch = h - 52.0 - 46.0;
+    for (i, (v, label)) in LOOKS.iter().enumerate() {
+        let bx = cx0 + i as f32 * (cw + gap);
+        let on = *v == cur;
+        let hov = hits.add(bx, cy0, cw, ch + 38.0, Act::CfgSet(key, v.to_string()));
+        if on {
+            cv.rrect(bx - 3.0, cy0 - 3.0, cw + 6.0, ch + 6.0, 21.0, p.primary);
+        }
+        cv.rrect(bx, cy0, cw, ch, 18.0, if hov && !on { p.card_hi.lighter(1.15) } else { p.surface });
+        let mx = bx + cw / 2.0;
+        match *v {
+            "tall" => {
+                let size = ch * 0.5;
+                cv.text(mx, cy0 + ch * 0.27, &hh, Face::Display, size, p.fg, Align::Center);
+                cv.text(mx, cy0 + ch * 0.73, &mm, Face::Display, size, p.dim, Align::Center);
+            }
+            "expressive" => {
+                let size = (ch * 0.5).min(cw * 0.3);
+                let pw = cv.measure(&hh, Face::Black, size);
+                let total = pw + cv.measure(&mm, Face::Black, size) + size * 0.2;
+                let x0 = mx - total / 2.0;
+                cv.text(x0, cy0 + ch * 0.44, &hh, Face::Black, size, tone, Align::Left);
+                cv.text(x0 + pw + size * 0.2, cy0 + ch * 0.44, &mm, Face::Black, size, p.fg, Align::Left);
+                cv.text(x0 + total, cy0 + ch * 0.8, &date, Face::Bold, size * 0.16, p.fg, Align::Right);
+            }
+            _ => {
+                let size = ch * 0.36;
+                cv.text(mx, cy0 + ch * 0.23, &hh, Face::Black, size, tone, Align::Center);
+                cv.text(mx, cy0 + ch * 0.55, &mm, Face::Black, size, p.fg, Align::Center);
+                let (dw, dh) = (size * 0.9, size * 0.22);
+                cv.rrect(mx - dw / 2.0, cy0 + ch * 0.82 - dh / 2.0, dw, dh, dh / 2.0, p.primary);
+            }
+        }
+        let ly = cy0 + ch + 22.0;
+        if on {
+            let lw = cv.measure(label, Face::Semi, 13.0);
+            cv.icon("check", mx - lw / 2.0 - 10.0, ly, 16.0, p.primary);
+            cv.text(mx + 8.0, ly, label, Face::Semi, 13.0, p.fg, Align::Center);
+        } else {
+            cv.text(mx, ly, label, Face::Regular, 13.0, if hov { p.fg } else { p.dim }, Align::Center);
         }
     }
 }

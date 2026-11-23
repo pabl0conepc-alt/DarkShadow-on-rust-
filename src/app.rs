@@ -103,7 +103,7 @@ struct Ptr {
 pub struct App {
     pub qh: QueueHandle<App>,
     pub lh: LoopHandle<'static, App>,
-    registry: RegistryState,
+    pub registry: RegistryState,
     seat: SeatState,
     pub outputs: OutputState,
     compositor: CompositorState,
@@ -140,6 +140,8 @@ pub fn make_theme(cfg: &Config, st: &State) -> Theme {
     let scheme = cfg.theme.scheme.as_str();
     let accent = if let Some(c) = crate::color::Rgba::hex(scheme) {
         c
+    } else if scheme == "veyron" && st.wm.accent.is_some() {
+        st.wm.accent.unwrap()
     } else if let Some((_, _, hex)) = crate::theme::SCHEMES.iter().find(|s| s.0 == scheme && !s.2.is_empty()) {
         crate::color::Rgba::hex(hex).unwrap()
     } else {
@@ -152,7 +154,10 @@ pub fn make_theme(cfg: &Config, st: &State) -> Theme {
         }
     };
     let gaming = cfg.performance.gaming || st.toggles.gaming;
-    Theme::new(accent, cfg.theme.panel_alpha, style, cfg.theme.blur && !gaming, cfg.theme.flat || gaming)
+    // VEYRON WM does not draw blur yet: glass over a sharp wallpaper reads badly, so the panels go solid
+    let no_blur = st.wm.kind == crate::state::WmKind::Veyron;
+    let alpha = if no_blur { 1.0 } else { cfg.theme.panel_alpha };
+    Theme::new(accent, alpha, style, cfg.theme.blur && !gaming && !no_blur, cfg.theme.flat || gaming)
 }
 
 impl App {

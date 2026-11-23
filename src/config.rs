@@ -235,7 +235,7 @@ impl Default for WidgetsCfg {
             enabled: true,
             fps: 20,
             pause_covered: true,
-            clock: WidgetCfg::new(true, "tl", 64, 56, "expressive"),
+            clock: WidgetCfg::new(true, "tl", 64, 56, "tall"),
             user: WidgetCfg::new(true, "tl", 28, 414, ""),
             trio: WidgetCfg::new(true, "bl", 52, 104, ""),
             focus: WidgetCfg::new(true, "tr", 142, 198, ""),

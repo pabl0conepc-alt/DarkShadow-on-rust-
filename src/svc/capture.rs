@@ -33,8 +33,24 @@ fn main_output_name(app: &App) -> Option<String> {
     app.svc.main_output.as_ref().and_then(|o| app.outputs.info(o)).and_then(|i| i.name)
 }
 
+/// Whether the compositor lets programs copy the screen (grim and wf-recorder need it).
+/// VEYRON WM does not have it yet.
+fn can_copy_screen(app: &mut App, title: &str) -> bool {
+    let ok = app
+        .registry
+        .globals()
+        .any(|g| g.interface == "zwlr_screencopy_manager_v1" || g.interface == "ext_image_copy_capture_manager_v1");
+    if !ok {
+        crate::actions::system_notice(app, title, "This compositor does not let programs copy the screen yet");
+    }
+    ok
+}
+
 /// `region` | `full` | `window` (the focused window on Hyprland).
 pub fn shot(app: &mut App, what: &str) {
+    if !can_copy_screen(app, "Screenshot") {
+        return;
+    }
     if !proc::which("grim") {
         crate::actions::system_notice(app, "Screenshot", "grim is not installed");
         return;
@@ -92,6 +108,9 @@ fn notice(app: &mut App, summary: &str, body: &str) -> u32 {
 pub fn record(app: &mut App, what: &str) {
     if app.st.rec.on || what == "stop" {
         stop(app);
+        return;
+    }
+    if !can_copy_screen(app, "Recording") {
         return;
     }
     if !proc::which("wf-recorder") {

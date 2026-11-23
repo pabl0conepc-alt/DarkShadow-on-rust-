@@ -84,5 +84,18 @@ if [ -f "$CONF/driftwm/config.toml" ]; then
   say "driftwm: merge config/driftwm/dshell.toml into $CONF/driftwm/config.toml (autostart, blur rules, keys)"
 fi
 
+if [ -d "$CONF/veyron" ] || command -v veyron >/dev/null 2>&1; then
+  mkdir -p "$CONF/veyron"
+  cp config/veyron/dshell.toml "$CONF/veyron/dshell.toml"
+  if [ -f "$CONF/veyron/veyron.toml" ]; then
+    if ! grep -q 'dshell.toml' "$CONF/veyron/veyron.toml"; then
+      say "VEYRON WM: add  include = [\"dshell.toml\"]  at the top of $CONF/veyron/veyron.toml (before any table)"
+    fi
+  else
+    printf 'include = ["dshell.toml"]\n' > "$CONF/veyron/veyron.toml"
+    say "VEYRON WM: created veyron.toml that includes dshell.toml (autostart and keys)"
+  fi
+fi
+
 case ":$PATH:" in *":$BIN:"*) ;; *) echo "Add $BIN to your PATH." ;; esac
 say "Done. Log out and back in (or run: dshell &). Keys: ALT+Space launcher, SUPER+N control center, SUPER+W wallpapers."

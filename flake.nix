@@ -1,5 +1,5 @@
 {
-  description = "DarkShadow's Shell rewritten in Rust (Hyprland and driftwm)";
+  description = "DarkShadow's Shell rewritten in Rust (Hyprland, driftwm and VEYRON WM)";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 

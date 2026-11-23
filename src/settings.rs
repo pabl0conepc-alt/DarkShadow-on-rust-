@@ -19,6 +19,8 @@ pub enum Ctl {
     Scheme,
     /// the shapes as chips
     Shape,
+    /// the desktop clock looks, as small previews
+    Clock,
     /// a button that does something
     Button(&'static str, fn() -> Act),
     /// a line of information
@@ -127,13 +129,14 @@ pub const PAGES: &[Page] = &[
             sw("widgets.pause_covered", "Pause under windows", "Motion stops while windows cover the desktop"),
             Row { key: "", title: "Widgets", desc: "Move them with Edit mode (SUPER + ALT + W)", ctl: Ctl::Button("Edit mode", || Act::EditMode) },
             sw("widgets.clock.enabled", "Clock", ""),
-            ch("widgets.clock.style", "Clock style", "", &[("expressive", "Expressive"), ("stacked", "Stacked")]),
             sw("widgets.user.enabled", "User", "Hi, name! and the date"),
             sw("widgets.trio.enabled", "CPU · GPU · RAM", "In soft shapes"),
             sw("widgets.focus.enabled", "Focus timer", "Focus and break, with a wavy sun"),
             sw("widgets.player.enabled", "Player", "The cover in your shape"),
             sw("widgets.weather.enabled", "Weather", ""),
             sw("widgets.calendar.enabled", "Calendar", ""),
+            sec("Clock", "The big clock on the desktop"),
+            Row { key: "widgets.clock.style", title: "Clock style", desc: "Click one to use it", ctl: Ctl::Clock },
             sec("Dock", "Pinned apps and the open ones; right click an icon to pin or unpin it"),
             sw("dock.enabled", "Dock", ""),
             sw("dock.running", "Open apps", "Show apps that are open but not pinned"),
@@ -243,7 +246,7 @@ fn layout_sig(c: &Config) -> String {
     let w = &c.widgets;
     let wsig: Vec<String> = [&w.clock, &w.user, &w.trio, &w.focus, &w.player, &w.weather, &w.calendar]
         .iter()
-        .map(|x| format!("{}{}{}{}{}", x.enabled, x.anchor, x.x, x.y, x.scale))
+        .map(|x| format!("{}{}{}{}{}{}", x.enabled, x.anchor, x.x, x.y, x.scale, x.style))
         .collect();
     format!(
         "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",

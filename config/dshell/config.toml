@@ -5,6 +5,7 @@
 [theme]
 # auto (colors from the wallpaper) | grey | navy | mono | slate | stone | steel | ash | ink | ocean | sky | teal
 # | mint | forest | lime | gold | sunset | ember | rose | orchid | violet | or a color like "#9ec9bd"
+# | veyron (VEYRON WM's own Material You color, follows `veyronctl theme`)
 scheme = "auto"
 # desktop widget look: google (tinted cards) | shadow (frosted glass) | outline (only a thin line)
 widget_style = "google"
@@ -72,7 +73,7 @@ enabled = true
 anchor = "tl"
 x = 64
 y = 56
-style = "expressive"         # expressive | stacked
+style = "tall"               # tall (narrow, one over the other) | expressive (heavy, side by side) | stacked
 
 [widgets.user]
 enabled = true

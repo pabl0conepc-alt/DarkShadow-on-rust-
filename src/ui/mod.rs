@@ -306,6 +306,10 @@ pub struct IslandUi {
     /// cross-fade between faces
     pub face: Glide,
     pub pulse: Option<Instant>,
+    /// the first frame takes the right width at once (no spring at start)
+    pub placed: bool,
+    /// where the pills were last frame (what changes is only inside these, old and new)
+    pub last_pills: Vec<(f32, f32, f32, f32)>,
 }
 
 pub struct CardUi {
@@ -398,6 +402,10 @@ pub struct Ui {
     pub power_sel: usize,
     pub picker: PickerUi,
     pub settings: SettingsUi,
+    /// the clock's digits: what is shown, what was shown before, and when it changed (the roll)
+    pub clock_shown: String,
+    pub clock_prev: String,
+    pub clock_since: Instant,
     pub menu: MenuUi,
     /// where the last button press was (surface x), for placing menus
     pub last_press_x: f32,
@@ -423,6 +431,8 @@ impl Ui {
                 width: Spring::new(120.0),
                 face: Glide::new(1.0, 180),
                 pulse: None,
+                placed: false,
+                last_pills: Vec::new(),
             },
             card: CardUi {
                 mode: CardMode::Today,
@@ -439,6 +449,9 @@ impl Ui {
             power_sel: 0,
             menu: MenuUi { service: String::new(), path: String::new(), entries: Vec::new(), rev: Reveal::new(200, 140) },
             last_press_x: 0.0,
+            clock_shown: String::new(),
+            clock_prev: String::new(),
+            clock_since: now,
             settings: SettingsUi { page: 0, scroll: 0.0, rev: Reveal::new(340, 180), pending: Vec::new(), write_armed: false },
             picker: PickerUi {
                 sel: 0,

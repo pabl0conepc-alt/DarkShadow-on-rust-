@@ -10,6 +10,7 @@ pub mod hypr;
 pub mod images;
 pub mod sysmon;
 pub mod tray;
+pub mod veyron;
 pub mod viz;
 pub mod weather;
 
@@ -44,6 +45,7 @@ pub struct Services {
     pub reload_armed: bool,
     pub capture: capture::Capture,
     pub tray: tray::Tray,
+    pub veyron: veyron::Veyron,
     pub sec_ticker: bool,
     pub clip_watch: Option<std::process::Child>,
     pub seek_preview: Option<f32>,
@@ -54,9 +56,17 @@ pub struct Services {
 }
 
 pub fn start(app: &mut App) {
-    hypr::start(app);
-    if app.st.wm.kind == crate::state::WmKind::None {
-        drift::start(app);
+    // Veyron runs nested for now: when it serves our display it wins over the session around it
+    if veyron::serves_us() {
+        veyron::start(app);
+    } else {
+        hypr::start(app);
+        if app.st.wm.kind == crate::state::WmKind::None {
+            drift::start(app);
+        }
+        if app.st.wm.kind == crate::state::WmKind::None && veyron::plausible() {
+            veyron::start(app);
+        }
     }
     audio::start(app);
     bus::start(app);

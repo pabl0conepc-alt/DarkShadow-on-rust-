@@ -1,0 +1,128 @@
+# DarkShadow's Shell (Rust) on VEYRON WM.
+#
+# Save as ~/.config/veyron/dshell.toml and add this line at the top of ~/.config/veyron/veyron.toml:
+#     include = ["dshell.toml"]
+# (or copy the parts you want). Veyron reloads its configuration when you save it.
+#
+# A [bindings] table replaces Veyron's default keymap as a whole, so the defaults are repeated
+# here with the shell's keys added. Two defaults moved to make room: reload is SUPER+CTRL+R
+# (Veyron also reloads by itself when the file is saved) and the scratchpad is SUPER+S.
+# Keys in your own veyron.toml [bindings] win over these.
+#
+# Veyron runs nested inside another session for now; the shell knows it is inside Veyron and
+# talks to it, not to the session around it. Veyron draws no blur yet, so the shell's panels
+# are solid there. In Settings > Appearance the "Veyron" color follows `veyronctl theme`.
+
+# start the shell with the compositor (if you already have a startup list, add "dshell" to it)
+startup = ["dshell"]
+
+[bindings]
+# --- the shell
+"alt+space" = "spawn dshell toggle launcher"
+"super+r" = "spawn dshell toggle launcher"
+"super+n" = "spawn dshell toggle control"
+"super+a" = "spawn dshell toggle control"
+"super+w" = "spawn dshell toggle picker"
+"super+v" = "spawn dshell toggle clipboard"
+"super+alt+w" = "spawn dshell edit"
+"super+alt+d" = "spawn dshell toggle today"
+"super+u" = "spawn dshell toggle settings"
+"super+g" = "spawn dshell gaming"
+"ctrl+alt+delete" = "spawn dshell toggle power"
+"super+l" = "spawn dshell lock"
+"print" = "spawn dshell shot region"
+"shift+print" = "spawn dshell shot full"
+"super+shift+s" = "spawn dshell shot region"
+"super+shift+r" = "spawn dshell record region"
+"super+alt+r" = "spawn dshell record full-sound"
+"xf86audioraisevolume" = "spawn dshell volume up"
+"xf86audiolowervolume" = "spawn dshell volume down"
+"xf86audiomute" = "spawn dshell volume mute"
+"xf86audiomicmute" = "spawn dshell mic mute"
+"xf86monbrightnessup" = "spawn dshell brightness up"
+"xf86monbrightnessdown" = "spawn dshell brightness down"
+"xf86audioplay" = "spawn dshell media play-pause"
+"xf86audiopause" = "spawn dshell media play-pause"
+"xf86audionext" = "spawn dshell media next"
+"xf86audioprev" = "spawn dshell media prev"
+
+# --- moved from the defaults
+"super+ctrl+r" = "reload"
+"super+s" = "scratchpad"
+
+# --- Veyron's default keymap
+"alt+shift+tab" = "focus-cycle prev"
+"alt+tab" = "focus-cycle next"
+"super+1" = "workspace 1"
+"super+2" = "workspace 2"
+"super+3" = "workspace 3"
+"super+4" = "workspace 4"
+"super+5" = "workspace 5"
+"super+alt+down" = "resize height 32"
+"super+alt+equal" = "opacity 10"
+"super+alt+left" = "resize width -32"
+"super+alt+minus" = "opacity -10"
+"super+alt+right" = "resize width 32"
+"super+alt+shift+down" = "move-floating down 32"
+"super+alt+shift+left" = "move-floating left 32"
+"super+alt+shift+right" = "move-floating right 32"
+"super+alt+shift+up" = "move-floating up 32"
+"super+alt+t" = "theme design next"
+"super+alt+up" = "resize height -32"
+"super+bracketleft" = "workspace prev"
+"super+bracketright" = "workspace next"
+"super+c" = "center-column"
+"super+comma" = "output left"
+"super+ctrl+alt+down" = "snap bottom"
+"super+ctrl+alt+left" = "snap left"
+"super+ctrl+alt+right" = "snap right"
+"super+ctrl+alt+up" = "snap top"
+"super+ctrl+comma" = "workspace-output left"
+"super+ctrl+down" = "workspace down"
+"super+ctrl+equal" = "gaps 4"
+"super+ctrl+left" = "workspace left"
+"super+ctrl+minus" = "gaps -4"
+"super+ctrl+period" = "workspace-output right"
+"super+ctrl+right" = "workspace right"
+"super+ctrl+shift+down" = "move-workspace down"
+"super+ctrl+shift+left" = "move-workspace left"
+"super+ctrl+shift+right" = "move-workspace right"
+"super+ctrl+shift+up" = "move-workspace up"
+"super+ctrl+t" = "theme variant next"
+"super+ctrl+up" = "workspace up"
+"super+down" = "focus down"
+"super+equal" = "column-width 10"
+"super+f" = "toggle-fullscreen"
+"super+left" = "focus left"
+"super+m" = "maximize"
+"super+minus" = "column-width -10"
+"super+o" = "pin"
+"super+p" = "profile next"
+"super+period" = "output right"
+"super+q" = "close"
+"super+return" = "terminal"
+"super+right" = "focus right"
+"super+shift+1" = "move-to-workspace 1"
+"super+shift+2" = "move-to-workspace 2"
+"super+shift+3" = "move-to-workspace 3"
+"super+shift+4" = "move-to-workspace 4"
+"super+shift+5" = "move-to-workspace 5"
+"super+shift+c" = "center-floating"
+"super+shift+comma" = "move-output left"
+"super+shift+down" = "move down"
+"super+shift+e" = "quit"
+"super+shift+g" = "group"
+"super+shift+l" = "layout next"
+"super+shift+left" = "move left"
+"super+shift+n" = "group next"
+"super+shift+p" = "pip bottom-right"
+"super+shift+period" = "move-output right"
+"super+shift+right" = "move right"
+"super+shift+t" = "theme next"
+"super+shift+up" = "move up"
+"super+space" = "toggle-floating"
+"super+t" = "theme toggle"
+"super+tab" = "focus previous"
+"super+up" = "focus up"
+"super+wheel_down" = "workspace next"
+"super+wheel_up" = "workspace prev"

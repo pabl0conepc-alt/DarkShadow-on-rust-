@@ -27,9 +27,14 @@ use crate::ui::{Kind, WIDGETS, WidgetId};
 /// Room around a widget card for its shadow.
 pub const SHADOW: i32 = 18;
 
-pub fn widget_size(w: WidgetId, scale: f32) -> (u32, u32) {
+pub fn widget_size(w: WidgetId, scale: f32, clock_style: &str) -> (u32, u32) {
     let (a, b) = match w {
-        WidgetId::Clock => (190, 300),
+        // the original's natural sizes for each clock style
+        WidgetId::Clock => match clock_style {
+            "stacked" => (250, 380),
+            "tall" => (190, 300),
+            _ => (470, 230),
+        },
         WidgetId::User => (340, 118),
         WidgetId::Trio => (340, 116),
         WidgetId::Focus => (258, 298),
@@ -238,7 +243,7 @@ pub fn widget_margin(app: &App, w: WidgetId) -> (Anchor, (i32, i32, i32, i32)) {
 
 fn open_widget(app: &mut App, w: WidgetId, out: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput) {
     let wc = w.cfg(&app.cfg);
-    let size = widget_size(w, wc.scale.clamp(0.5, 2.0));
+    let size = widget_size(w, wc.scale.clamp(0.5, 2.0), &app.cfg.widgets.clock.style);
     let (anchor, margin) = widget_margin(app, w);
     app.open(Spec {
         kind: Kind::Widget(w),
@@ -251,7 +256,8 @@ fn open_widget(app: &mut App, w: WidgetId, out: smithay_client_toolkit::reexport
         kb: KeyboardInteractivity::None,
         output: Some(out),
         topics: widget_topics(w),
-        fps: app.cfg.widgets.fps.clamp(5, 60),
+        // the CPU · GPU · RAM cookies turn once a minute: a few frames a second are plenty
+        fps: if w == WidgetId::Trio { app.cfg.widgets.fps.clamp(1, 2) } else { app.cfg.widgets.fps.clamp(5, 60) },
     });
 }
 
