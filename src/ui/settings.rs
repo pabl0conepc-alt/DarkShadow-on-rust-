@@ -46,6 +46,7 @@ fn info_text(ctx: &Ctx, key: &str) -> String {
         "about.wm" => match ctx.st.wm.kind {
             crate::state::WmKind::Hyprland => "Hyprland".into(),
             crate::state::WmKind::Drift => "driftwm".into(),
+            crate::state::WmKind::Veyron => "VEYRON WM".into(),
             crate::state::WmKind::None => "none found".into(),
         },
         "about.memory" => {
@@ -247,13 +248,16 @@ fn draw_row(cv: &mut Canvas, ctx: &Ctx, hits: &mut Hits, r: &Row, x: f32, y: f32
         Ctl::Scheme => {
             let cur = val.as_ref().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default();
             let per_row = ((w - 36.0) / 62.0).floor().max(1.0) as usize;
-            for (i, (key, name, hex)) in SCHEMES.iter().enumerate() {
+            let on_veyron = ctx.st.wm.kind == crate::state::WmKind::Veyron;
+            for (i, (key, name, hex)) in SCHEMES.iter().filter(|s| s.0 != "veyron" || on_veyron).enumerate() {
                 let (col, row) = (i % per_row, i / per_row);
                 let (cx, ccy) = (x + 18.0 + 22.0 + col as f32 * 62.0, y + 66.0 + row as f32 * 60.0);
                 let color = if hex.is_empty() {
                     if *key == "grey" {
                         let l = ctx.th.accent.luma().clamp(0.5, 0.75);
                         rgba(l, l, l, 1.0)
+                    } else if *key == "veyron" {
+                        ctx.st.wm.accent.unwrap_or(ctx.th.accent)
                     } else {
                         ctx.st.wall.accent.unwrap_or(ctx.th.accent)
                     }

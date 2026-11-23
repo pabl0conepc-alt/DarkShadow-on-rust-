@@ -5,6 +5,7 @@
 [theme]
 # auto (colors from the wallpaper) | grey | navy | mono | slate | stone | steel | ash | ink | ocean | sky | teal
 # | mint | forest | lime | gold | sunset | ember | rose | orchid | violet | or a color like "#9ec9bd"
+# | veyron (VEYRON WM's own Material You color, follows `veyronctl theme`)
 scheme = "auto"
 # desktop widget look: google (tinted cards) | shadow (frosted glass) | outline (only a thin line)
 widget_style = "google"

@@ -34,6 +34,7 @@ pub enum WmKind {
     None,
     Hyprland,
     Drift,
+    Veyron,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -56,6 +57,8 @@ pub struct Wm {
     pub layout: String,
     /// open windows grouped by app: (app id / class, how many, one of them is focused)
     pub apps: Vec<(String, u32, bool)>,
+    /// the compositor's own theme color (VEYRON WM's Material You primary)
+    pub accent: Option<crate::color::Rgba>,
 }
 
 #[derive(Clone, Debug, Default)]

@@ -26,6 +26,8 @@ pub const SCHEMES: &[(&str, &str, &str)] = &[
     ("rose", "Rose", "#f48fa8"),
     ("orchid", "Orchid", "#b5a9ff"),
     ("violet", "Violet", "#a58bdc"),
+    // VEYRON WM's own Material You color (only offered on Veyron)
+    ("veyron", "Veyron", ""),
 ];
 
 /// Panel palette (control center, island cards, launcher, notifications, the bar): NPal "shell".

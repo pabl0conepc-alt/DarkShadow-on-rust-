@@ -1,6 +1,6 @@
 # DarkShadow on Rust
 
-**O [DarkShadow's Shell](https://github.com/shadowww-dev/DarkShadowShell) reescrito em Rust, num binário só (`dshell`), para Hyprland e driftwm.**
+**O [DarkShadow's Shell](https://github.com/shadowww-dev/DarkShadowShell) reescrito em Rust, num binário só (`dshell`), para Hyprland, driftwm e VEYRON WM.**
 
 Sem EWW, sem GTK, sem Qt/QML. O `dshell` desenha tudo ele mesmo na CPU, direto em buffers de memória compartilhada do Wayland (layer-shell), e só redesenha o que mudou. O resultado é um shell que fica parado em ~0 % de CPU e usa poucos MB de memória própria.
 
@@ -33,6 +33,8 @@ A ilha dinâmica vira o volume, o microfone, o brilho, o workspace ou o carregad
 
 ![Dock](docs/screenshots/dock.png)
 
+![No VEYRON WM](docs/screenshots/veyron.jpg)
+
 > As capturas vieram do `dshell` rodando de verdade (sway headless, renderização por software, com um player MPRIS de teste). O blur atrás dos cartões aparece no Hyprland/driftwm com as regras de `config/`.
 
 ---
@@ -56,7 +58,7 @@ Binário: ~5 MiB, com a fonte Google Sans Flex embutida já reduzida (os eixos q
 ### Por que é leve
 
 - **Um processo, um loop.** Wayland, D-Bus, sockets do Hyprland/driftwm, `pactl subscribe`, timers e o IPC do próprio shell entram todos num único loop `calloop`, numa thread só. Não há runtime async nem threads paradas.
-- **Tudo por evento, nada de polling:** workspaces pelo socket de eventos do Hyprland / `Subscribe` do driftwm; som pelo `pactl subscribe`; música, rede, Bluetooth, bateria e notificações por sinais D-Bus; config por inotify. O monitor de CPU/RAM só roda enquanto algo na tela mostra os números, e o visualizador (`cava`) só roda com música tocando.
+- **Tudo por evento, nada de polling:** workspaces pelo socket de eventos do Hyprland / `Subscribe` do driftwm / `subscribe` do Veyron; som pelo `pactl subscribe`; música, rede, Bluetooth, bateria e notificações por sinais D-Bus; config por inotify. O monitor de CPU/RAM só roda enquanto algo na tela mostra os números, e o visualizador (`cava`) só roda com música tocando.
 - **Só redesenha o que mudou.** Cada superfície assina os tópicos que mostra (relógio, mídia, rede...). O relógio redesenha uma vez por minuto; o resto fica parado.
 - **Animação só onde se mexe.** As partes paradas de um widget animado ficam num cache; a cada quadro só a capa e as ondas são redesenhadas, e o compositor recebe só essa área como "dano". Animações usam frame callbacks (superfície escondida não gasta nada) e ficam limitadas a 20 fps, como no original.
 - **Só a área que mudou vai para o compositor:** a barra envia só a pílula (não a faixa de 1920 px), os widgets animados só a capa/onda.
@@ -81,7 +83,7 @@ Binário: ~5 MiB, com a fonte Google Sans Flex embutida já reduzida (os eixos q
 | **Notificações** | servidor `org.freedesktop.Notifications` próprio (ícones, imagens, ações, substituição, urgência) |
 | **Papel de parede** | desenhado pelo shell, seletor com miniaturas, aleatório, as cores do shell inteiro seguem a imagem (cinza para imagens sem cor) |
 | **Temas** | `auto` (da imagem), `grey` e os 19 esquemas do original (navy, mono, slate, ocean, teal, rose, violet...) ou qualquer cor; estilos de widget `google`, `shadow` (vidro) e `outline`; sua forma (verysunny, cookie, flower, clover...) |
-| **Dock** | desligado por padrão (Configurações → Widgets → Dock): apps fixados e os abertos, ponto embaixo dos abertos e traço no focado; clique abre o app ou traz a janela dele (Hyprland e driftwm); clique direito fixa/desafixa (também no launcher); fica acima da barra sem cobrir janelas |
+| **Dock** | desligado por padrão (Configurações → Widgets → Dock): apps fixados e os abertos, ponto embaixo dos abertos e traço no focado; clique abre o app ou traz a janela dele (Hyprland, driftwm e Veyron); clique direito fixa/desafixa (também no launcher); fica acima da barra sem cobrir janelas |
 | **Área de transferência** | `SUPER + V`: o histórico (cliphist, que o shell mantém rodando) com busca; escolher um item o põe de volta no clipboard; imagens aparecem como imagem |
 | **Captura e gravação** | `Print` região, `SHIFT + Print` tela inteira (salva em `~/Pictures/Screenshots` e copia); `SUPER + SHIFT + R` grava uma região, `SUPER + ALT + R` a tela com som (em `~/Videos/Recordings`); enquanto grava, a ilha mostra o tempo e o botão de parar |
 | **Energia** | bloquear, suspender, sair, reiniciar, desligar (teclado ou mouse) |
@@ -91,7 +93,7 @@ Binário: ~5 MiB, com a fonte Google Sans Flex embutida já reduzida (os eixos q
 
 - **Configurações:** a janela de Configurações cobre as opções do shell; o que ela não mostra (módulos da barra, posições exatas, comandos) fica no `config.toml`, recarregado ao salvar. Ainda não há busca nas configurações.
 - **Ainda não feito:** task view, game bar, letras de música, sons de interface, tela de bloqueio própria (usa hyprlock/swaylock), tema do SDDM, intro de boas-vindas.
-- **Compositores:** Hyprland e driftwm (no driftwm os bookmarks fazem o papel de workspaces). niri não é suportado.
+- **Compositores:** Hyprland, driftwm (os bookmarks fazem o papel de workspaces) e [VEYRON WM](https://github.com/pabl0conepc-alt/Veyron-WM). niri não é suportado.
 - **Ícones:** os Material Symbols usados vêm embutidos como vetores (sem precisar da fonte instalada).
 
 ---
@@ -127,8 +129,17 @@ Instala as dependências, compila, coloca o binário em `~/.local/bin`, copia os
 - **Hyprland 0.55+ (config em Lua):** copie `config/hypr/dshell.lua` para `~/.config/hypr/` e adicione `require("dshell")` ao `hyprland.lua`.
 - **Hyprland antigo (hyprland.conf):** `source = ~/.config/hypr/dshell.conf` (arquivo em `config/hypr/dshell.conf`).
 - **driftwm:** junte `config/driftwm/dshell.toml` ao seu `~/.config/driftwm/config.toml` (autostart, regras de blur e atalhos).
+- **VEYRON WM:** copie `config/veyron/dshell.toml` para `~/.config/veyron/` e ponha `include = ["dshell.toml"]` no topo do `veyron.toml` (autostart e atalhos; o mapa padrão do Veyron vem junto, com recarregar em `SUPER + CTRL + R` e scratchpad em `SUPER + S`).
 
 Esses arquivos ligam o blur atrás dos cartões e as teclas abaixo.
+
+### VEYRON WM
+
+O `dshell` fala com o socket de controle do Veyron (`$XDG_RUNTIME_DIR/veyron.sock`, `$VEYRON_SOCKET` ou o que o `veyron --socket` criou): os workspaces e quais têm janelas, o título da janela focada e a lista de apps abertos chegam pelo `subscribe` (sem polling); os pontos da barra, `dshell ws`, o dock e sair da sessão viram ações do Veyron.
+
+- **Aninhado:** o Veyron ainda roda dentro de outra sessão (KDE, Hyprland...). O `dshell` vê qual compositor serve o seu `WAYLAND_DISPLAY`, então dentro do Veyron ele fala com o Veyron, e fora dele com a sessão de fora, mesmo com as variáveis do Hyprland herdadas.
+- **Cor "Veyron":** em Configurações → Aparência aparece o esquema *Veyron*, que usa a cor primária do Material You do Veyron e muda ao vivo com `veyronctl theme …` / `SUPER + SHIFT + T`.
+- **O que o Veyron ainda não tem:** blur (os painéis ficam sólidos lá), captura de tela (screenshot e gravação avisam em vez de falhar) e uma ação para focar uma janela pelo id (o dock vai ao workspace do app e passa o foco até chegar nele).
 
 ## Atalhos
 
@@ -201,7 +212,7 @@ src/
   shell.rs      quais superfícies existem, relógio, recarga da config, papel de parede
   actions.rs    cliques, teclas, CLI, ilha, notificações
   ui/           barra + ilha, cartão da ilha, launcher, central, energia, seletor, widgets, papel de parede
-  svc/          hypr, drift (driftwm), audio (wpctl/pactl), bus (MPRIS, notificações, NetworkManager,
+  svc/          hypr, drift (driftwm), veyron, audio (wpctl/pactl), bus (MPRIS, notificações, NetworkManager,
                 BlueZ, UPower, logind), sysmon, weather (wttr.in), viz (cava), apps (.desktop + ícones), images
 ```
 
@@ -221,7 +232,7 @@ cargo run --release --example sni_mock      # dois ícones de tray falsos
 - **[DarkShadow's Shell](https://github.com/shadowww-dev/DarkShadowShell)** de **shadowww-dev** (MIT): o design inteiro (a barra e a ilha dinâmica, os widgets, a central de controle, o launcher, as paletas, os esquemas de cor), o comportamento e os **papéis de parede** em `assets/wallpapers/`. Ele por sua vez credita Sarods2D (Infinite Desktop, Iridium) e fedyaqq34356 (a ideia da ilha).
 - **[Google Sans Flex](https://fonts.google.com)** (SIL OFL 1.1, `assets/fonts/LICENSE`) e **[Material Symbols](https://github.com/google/material-design-icons)** (Apache-2.0).
 - **[smithay-client-toolkit](https://github.com/Smithay/client-toolkit)**, **[tiny-skia](https://github.com/linebender/tiny-skia)**, **[ab_glyph](https://github.com/alexheretic/ab-glyph)**, **[resvg](https://github.com/linebender/resvg)**, **[dbus-rs](https://github.com/diwic/dbus-rs)**, **[image](https://github.com/image-rs/image)**.
-- **[driftwm](https://github.com/malbiruk/driftwm)** e **[Hyprland](https://hypr.land)**; **[cava](https://github.com/karlstav/cava)**; **[wttr.in](https://wttr.in)**.
+- **[driftwm](https://github.com/malbiruk/driftwm)**, **[Hyprland](https://hypr.land)** e **[VEYRON WM](https://github.com/pabl0conepc-alt/Veyron-WM)**; **[cava](https://github.com/karlstav/cava)**; **[wttr.in](https://wttr.in)**.
 
 ## Licença
 

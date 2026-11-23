@@ -333,6 +333,7 @@ fn dock_click(app: &mut App, key: &str) {
             WmKind::Drift => {
                 let _ = drift::request(&serde_json::json!({ "Focus": c }));
             }
+            WmKind::Veyron => crate::svc::veyron::focus_app(app, &c),
             WmKind::None => {}
         },
         None => {
@@ -641,6 +642,9 @@ pub fn power(app: &mut App, p: PowerAct) {
         PowerAct::Logout => match app.st.wm.kind {
             WmKind::Hyprland => hypr::dispatch(app, "exit"),
             WmKind::Drift => drift::action("quit"),
+            WmKind::Veyron => {
+                crate::svc::veyron::action("quit");
+            }
             WmKind::None => crate::proc::spawn(&["loginctl", "terminate-session", ""]),
         },
         PowerAct::Reboot => crate::proc::spawn(&["systemctl", "reboot"]),
@@ -696,11 +700,13 @@ pub fn act(app: &mut App, a: Act) {
         Act::Ws(n) => match app.st.wm.kind {
             WmKind::Hyprland => hypr::dispatch(app, &format!("workspace {n}")),
             WmKind::Drift => drift::goto(app, n),
+            WmKind::Veyron => crate::svc::veyron::goto(n),
             WmKind::None => {}
         },
         Act::WsRel(d) => match app.st.wm.kind {
             WmKind::Hyprland => hypr::dispatch(app, &format!("workspace {}", if d > 0 { "e+1" } else { "e-1" })),
             WmKind::Drift => drift::step(app, d),
+            WmKind::Veyron => crate::svc::veyron::step(d),
             WmKind::None => {}
         },
         Act::PlayPause => bus::player_call(app, "PlayPause"),
@@ -1688,10 +1694,15 @@ fn status(app: &App) -> String {
     let surfs: Vec<String> =
         app.surfs.iter().map(|s| format!("{:?}[{}x{} draws={} avg={}us pool={}k]", s.kind, s.w, s.h, s.draws, s.draw_us / s.draws.max(1) as u64, s.pool_len / 1024)).collect();
     format!(
-        "wm: {:?}\nworkspace: {} of {}\nmedia: {} — {} ({})\nvolume: {:.0}%{}\nnotifications: {} (server: {})\nsurfaces: {}\nmemory: {} kB",
+        "wm: {:?}\nworkspace: {} of {}\nworkspaces: {}\nwindow: {} ({}){}\napps: {}\nmedia: {} — {} ({})\nvolume: {:.0}%{}\nnotifications: {} (server: {})\nsurfaces: {}\nmemory: {} kB",
         app.st.wm.kind,
         app.st.wm.active,
         app.st.wm.workspaces.len(),
+        app.st.wm.workspaces.iter().map(|w| format!("{}:{}{}", w.id, w.name, if w.windows > 0 { format!("[{}]", w.windows) } else { String::new() })).collect::<Vec<_>>().join(" "),
+        app.st.wm.title,
+        app.st.wm.class,
+        if app.st.wm.covered { " covered" } else { "" },
+        app.st.wm.apps.iter().map(|(c, n, f)| format!("{c}x{n}{}", if *f { "*" } else { "" })).collect::<Vec<_>>().join(" "),
         app.st.media.title,
         app.st.media.artist,
         if app.st.media.playing { "playing" } else { "paused" },
