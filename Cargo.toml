@@ -1,0 +1,36 @@
+[package]
+name = "dshell"
+version = "0.1.0"
+edition = "2024"
+description = "DarkShadow's Shell rewritten in Rust: one small native binary for Hyprland and driftwm"
+license = "MIT"
+repository = "https://github.com/pabl0conepc-alt/DarkShadow-on-rust-"
+
+[[bin]]
+name = "dshell"
+path = "src/main.rs"
+
+[dependencies]
+ab_glyph = "0.2.32"
+dbus = "0.9.12"
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+kurbo = "0.13.1"
+libc = "0.2.191"
+resvg = { version = "0.50.0", default-features = false }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+smithay-client-toolkit = { version = "0.21.1", default-features = false, features = ["calloop", "xkbcommon"] }
+tiny-skia = { version = "0.12.0", default-features = false, features = ["std", "simd"] }
+toml = "1.2.2"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

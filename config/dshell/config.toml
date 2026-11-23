@@ -1,0 +1,162 @@
+# DarkShadow's Shell (Rust) — ~/.config/dshell/config.toml
+# Every key is optional: delete what you don't change. The shell reloads this file by itself when you save it.
+# `dshell config` writes this file; `dshell reload` reloads it by hand.
+
+[theme]
+# auto (colors from the wallpaper) | grey | navy | mono | slate | stone | steel | ash | ink | ocean | sky | teal
+# | mint | forest | lime | gold | sunset | ember | rose | orchid | violet | or a color like "#9ec9bd"
+scheme = "auto"
+# desktop widget look: google (tinted cards) | shadow (frosted glass) | outline (only a thin line)
+widget_style = "google"
+# the compositor blurs behind the shell (Hyprland layer rules / driftwm window rules, see the README)
+blur = true
+# no transparency anywhere
+flat = false
+# how solid the panels are (0.2 .. 1)
+panel_alpha = 0.9
+# your shape (icons, avatar, highlights): verysunny | sunny | cookie | cookie4..12 | flower | clover | pentagon
+# | hexagon | square | circle
+shape = "verysunny"
+# wavy progress lines and rings (Material 3 expressive)
+wavy = true
+# widgets turn light or dark with the wallpaper behind each one
+adapt = true
+shadows = true
+
+[bar]
+enabled = true
+position = "bottom"          # top | bottom
+style = "island"             # island (one pill) | dynamic (a pill per side) | flat (full width)
+height = 38
+opacity = 0.72
+# modules: power launcher workspaces title island media tray network bluetooth volume battery notifications
+#          settings wallpaper
+left = ["power", "launcher", "workspaces"]
+center = ["island"]
+right = ["tray", "network", "bluetooth", "volume", "battery", "notifications"]
+workspaces = 5
+ws_style = "dots"            # dots | numbers
+seconds = false
+date = false
+autohide = false
+# the screen the bar and the widgets live on ("" = the first one), e.g. "DP-1"
+output = ""
+
+[island]
+# off: the island is only the clock (a click still opens Today)
+dynamic = true
+media = true                 # point at the island while music plays: the player grows out of it
+volume = true                # volume / microphone / brightness changes show in the island
+workspaces = true
+notifications = true
+charger = true
+weather = true
+wave = true                  # a tiny visualizer beside the time while music plays
+
+[wallpaper]
+# dshell draws the wallpaper (one buffer per screen, the decoded picture is dropped right after).
+# Turn off if you use swww / hyprpaper / driftwm's [background].
+enabled = true
+path = ""                    # empty: the last one you picked, or the first in `dir`
+dir = "~/Pictures/Wallpapers"
+transition = "fade"          # fade | none
+
+[widgets]
+enabled = true
+fps = 20                     # moving parts (turning cover, waves) at most this often
+pause_covered = true         # motion stops while windows cover the desktop
+
+# anchor: tl | tr | bl | br — the corner x and y are measured from. `dshell edit` lets you drag them.
+[widgets.clock]
+enabled = true
+anchor = "tl"
+x = 64
+y = 56
+style = "expressive"         # expressive | stacked
+
+[widgets.user]
+enabled = true
+anchor = "tl"
+x = 28
+y = 414
+
+[widgets.trio]
+enabled = true
+anchor = "bl"
+x = 52
+y = 104
+
+[widgets.focus]
+enabled = true
+anchor = "tr"
+x = 142
+y = 198
+
+[widgets.player]
+enabled = true
+anchor = "br"
+x = 94
+y = 90
+
+[widgets.weather]
+enabled = false
+anchor = "tr"
+x = 142
+y = 520
+
+[widgets.calendar]
+enabled = false
+anchor = "tl"
+x = 420
+y = 60
+
+[widgets.visualizer]
+enabled = true               # needs cava; runs only while music plays
+height = 90
+bars = 64
+style = "bars"               # bars | mirror | wave | dots
+color = "accent"             # accent | gradient | rainbow | mono
+fps = 30
+
+[dock]
+enabled = false              # apps pinned + open; right click an icon (or a launcher row) to pin/unpin
+pinned = ["firefox.desktop", "org.gnome.Nautilus.desktop", "kitty.desktop", "foot.desktop"]
+size = 44
+running = true               # also the open apps that are not pinned
+
+[launcher]
+width = 560
+rows = 7
+position = "center"          # top | center | bottom
+
+[notifications]
+enabled = true               # dshell is the notification server (turn off to keep mako / swaync)
+timeout = 6                  # seconds a pop-up stays
+dnd = false
+history = 50
+
+[control]
+width = 440
+# commands for the quick switches (empty: hyprsunset on Hyprland, else wlsunset / gammastep)
+nightlight_on = ""
+nightlight_off = ""
+# what the gear button opens (empty: this file in your editor)
+settings = ""
+# lock command (empty: hyprlock, swaylock or loginctl lock-session)
+lock = ""
+
+[weather]
+enabled = true
+location = ""                # a city, or empty for where your IP is (wttr.in)
+units = "c"                  # c | f
+minutes = 30
+
+[apps]
+terminal = "kitty"           # for Terminal=true apps
+files = "nautilus"
+browser = "firefox"
+icon_theme = ""              # empty: your GTK icon theme
+
+[performance]
+trim_memory = true           # give freed memory back to the system after panels close
+gaming = false               # no motion, no blur, no visualizer (also: `dshell gaming`)
