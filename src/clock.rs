@@ -69,9 +69,10 @@ pub fn until_next(seconds: bool) -> std::time::Duration {
 
 pub fn greeting(hour: u32) -> &'static str {
     match hour {
+        // the same hours as the original
+        0..=4 => "Good Night",
         5..=11 => "Good Morning",
         12..=17 => "Good Afternoon",
-        18..=21 => "Good Evening",
-        _ => "Good Night",
+        _ => "Good Evening",
     }
 }

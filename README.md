@@ -43,14 +43,15 @@ Medido a 1920×1080 com barra, 5 widgets, visualizador e papel de parede ativos,
 
 | Situação | CPU (1 núcleo) | Memória própria (RSS anônima) | RSS total |
 |---|---|---|---|
-| Parado | **~0,1 %** | **~1,8 MiB** | ~25 MiB* |
+| Parado (cookies do CPU · GPU · RAM girando, como no original) | **~0,2 %** | **~0,8 MiB** | ~21 MiB* |
+| Parado com janelas cobrindo a área de trabalho | **~0 %** | ~0,8 MiB | ~21 MiB* |
 | Música tocando (capa girando, ondas a 20 fps) | ~2,3 % | ~2 MiB | ~26 MiB* |
 | Música tocando com janelas cobrindo a área de trabalho | ~0 % | ~2 MiB | — |
 | Pico ao abrir o seletor de papéis de parede (decodificando JPEG 4K) | momentâneo | — | ~48 MiB, volta sozinho |
 
-\* O total inclui ~10 MiB do próprio binário e da fonte (páginas de arquivo, compartilhadas e descartáveis) e ~12 MiB de buffers de tela que o compositor de teste (pixman) nunca devolve. Em compositores com GPU (Hyprland, driftwm) o buffer é devolvido logo após ser enviado à GPU, e o `dshell` libera essa memória depois de ~3 s parado.
+\* O total inclui ~8 MiB do próprio binário (páginas de arquivo, compartilhadas e descartáveis) e ~12 MiB de buffers de tela que o compositor de teste (pixman) nunca devolve. Em compositores com GPU (Hyprland, driftwm) o buffer é devolvido logo após ser enviado à GPU, e o `dshell` libera essa memória depois de ~3 s parado.
 
-Binário: ~8 MiB (4 MiB são a fonte Google Sans Flex embutida). Primeiro quadro na tela: ~40 ms.
+Binário: ~5 MiB, com a fonte Google Sans Flex embutida já reduzida (os eixos que o shell não usa ficam fixos: 4 MB → 228 KB, mesmo desenho; `tools/reduce-font.py`). Primeiro quadro na tela: ~40 ms.
 
 ### Por que é leve
 
@@ -58,6 +59,7 @@ Binário: ~8 MiB (4 MiB são a fonte Google Sans Flex embutida). Primeiro quadro
 - **Tudo por evento, nada de polling:** workspaces pelo socket de eventos do Hyprland / `Subscribe` do driftwm; som pelo `pactl subscribe`; música, rede, Bluetooth, bateria e notificações por sinais D-Bus; config por inotify. O monitor de CPU/RAM só roda enquanto algo na tela mostra os números, e o visualizador (`cava`) só roda com música tocando.
 - **Só redesenha o que mudou.** Cada superfície assina os tópicos que mostra (relógio, mídia, rede...). O relógio redesenha uma vez por minuto; o resto fica parado.
 - **Animação só onde se mexe.** As partes paradas de um widget animado ficam num cache; a cada quadro só a capa e as ondas são redesenhadas, e o compositor recebe só essa área como "dano". Animações usam frame callbacks (superfície escondida não gasta nada) e ficam limitadas a 20 fps, como no original.
+- **Só a área que mudou vai para o compositor:** a barra envia só a pílula (não a faixa de 1920 px), os widgets animados só a capa/onda.
 - **Rasterizador próprio** para o que o shell mais desenha (retângulos arredondados, anéis e ondas, capa girando): mistura de pixels em SWAR, de 2× a 8× mais rápido que um preenchimento de path genérico nesses casos (veja `examples/drawbench.rs`).
 - **Memória devolvida.** Painéis só existem abertos; ao fechar, a superfície e seus buffers somem. Superfícies paradas devolvem seus buffers. O papel de parede é decodificado, copiado para o buffer e descartado. Buffers grandes vêm direto do `mmap` e voltam ao sistema na hora (`mallopt`), e miniaturas são decodificadas uma de cada vez.
 - **Sem pilhas pesadas:** nada de toolkit gráfico, nada de TLS (clima e capas usam `curl`), D-Bus pela libdbus do sistema.
@@ -72,7 +74,7 @@ Binário: ~8 MiB (4 MiB são a fonte Google Sans Flex embutida). Primeiro quadro
 | **Barra** | estilo `island` (uma pílula no meio, padrão), `dynamic` (uma pílula por lado) ou `flat`; topo ou base; auto-ocultar; módulos: energia, launcher (o buraco negro), workspaces (pontos ou números), título da janela, ilha, mídia, rede, Bluetooth, volume (roda do mouse = volume), bateria, notificações |
 | **Ilha dinâmica** | é o relógio (+ clima e uma mini onda quando toca música); vira volume/microfone/brilho (arrastável, onda), workspace e carregador; passe o mouse com música tocando e o player cresce dela; clique: Hoje; clique direito: Sistema; notificações aparecem como cartão saindo dela com uma onda que vai acabando |
 | **Hoje / Sistema** | dia, clima, o dia como onda, calendário do mês; CPU, GPU (ou temperatura), RAM em anéis ondulados e o disco |
-| **Widgets** | relógio expressivo (duas linhas altas), cartão "Hi, nome!", CPU · GPU · RAM em formas suaves, foco/pomodoro (Focus/Break, sol ondulado girando), player (capa girando numa forma, anel e linha onduladas, 5 botões), clima, calendário; cores claras/escuras conforme o papel de parede atrás de cada um; `dshell edit` para arrastar |
+| **Widgets** | relógio como no v4.99 (horas e minutos lado a lado em peso Black, horas no tom claro do tema, data embaixo, cada dígito rola ao mudar; estilos `stacked` com a data numa pílula e `tall`), cartão "Hi, nome!", CPU · GPU · RAM (cookies girando uma volta por minuto e a GPU no meio num círculo da cor quente, “—” sem dado), foco/pomodoro (Focus/Break, sol ondulado girando), player (capa girando numa forma, anel e linha onduladas, 5 botões), clima, calendário; cores claras/escuras conforme o papel de parede atrás de cada um; `dshell edit` para arrastar |
 | **Visualizador** | barras, espelho, onda ou pontos; cor do tema, degradê, arco-íris ou branco (via `cava`) |
 | **Launcher** | busca com pontuação (prefixo, palavra, letras em ordem), apps mais usados primeiro, ícones do tema, Enter roda o texto se nada combinar |
 | **Central de controle** | brilho, volume, microfone; Wi-Fi e Bluetooth (a seta abre a lista: redes com força do sinal, salvas e protegidas, conectar com senha, desconectar; dispositivos com bateria, procurar, parear, conectar, desconectar); Não perturbe, Luz noturna, Manter acordado, Modo jogo; música com linha ondulada arrastável; lista de notificações; aba Visão geral (hora, calendário, clima, anéis) |

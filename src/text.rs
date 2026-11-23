@@ -22,9 +22,11 @@ pub enum Face {
     /// Bold and a bit wide: big numbers on gauges and timers.
     Numbers = 5,
     Light = 6,
+    /// the heaviest weight: the clock's digits
+    Black = 7,
 }
 
-const FACES: [(Face, f32, f32); 7] = [
+const FACES: [(Face, f32, f32); 8] = [
     (Face::Regular, 400.0, 100.0),
     (Face::Medium, 500.0, 100.0),
     (Face::Semi, 600.0, 100.0),
@@ -32,6 +34,7 @@ const FACES: [(Face, f32, f32); 7] = [
     (Face::Display, 560.0, 25.0),
     (Face::Numbers, 720.0, 104.0),
     (Face::Light, 300.0, 100.0),
+    (Face::Black, 900.0, 100.0),
 ];
 
 pub struct Glyph {

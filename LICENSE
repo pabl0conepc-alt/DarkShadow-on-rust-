@@ -22,4 +22,5 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 The embedded font assets/fonts/GoogleSansFlex.ttf is licensed under the SIL Open Font License 1.1
-(assets/fonts/LICENSE). The Material Symbols path data in src/icons_data.rs is Apache-2.0 (Google).
+(assets/fonts/LICENSE); it is a reduced instance (GRAD/ROND/slnt/opsz pinned, shaping tables removed, see
+tools/reduce-font.py) of Google Sans Flex. The Material Symbols path data in src/icons_data.rs is Apache-2.0 (Google).

@@ -127,7 +127,7 @@ pub const PAGES: &[Page] = &[
             sw("widgets.pause_covered", "Pause under windows", "Motion stops while windows cover the desktop"),
             Row { key: "", title: "Widgets", desc: "Move them with Edit mode (SUPER + ALT + W)", ctl: Ctl::Button("Edit mode", || Act::EditMode) },
             sw("widgets.clock.enabled", "Clock", ""),
-            ch("widgets.clock.style", "Clock style", "", &[("expressive", "Expressive"), ("stacked", "Stacked")]),
+            ch("widgets.clock.style", "Clock style", "", &[("expressive", "Expressive"), ("stacked", "Stacked"), ("tall", "Tall")]),
             sw("widgets.user.enabled", "User", "Hi, name! and the date"),
             sw("widgets.trio.enabled", "CPU · GPU · RAM", "In soft shapes"),
             sw("widgets.focus.enabled", "Focus timer", "Focus and break, with a wavy sun"),
@@ -243,7 +243,7 @@ fn layout_sig(c: &Config) -> String {
     let w = &c.widgets;
     let wsig: Vec<String> = [&w.clock, &w.user, &w.trio, &w.focus, &w.player, &w.weather, &w.calendar]
         .iter()
-        .map(|x| format!("{}{}{}{}{}", x.enabled, x.anchor, x.x, x.y, x.scale))
+        .map(|x| format!("{}{}{}{}{}{}", x.enabled, x.anchor, x.x, x.y, x.scale, x.style))
         .collect();
     format!(
         "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",

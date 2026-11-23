@@ -128,6 +128,11 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
     // the island's width glides on a spring
     let target = island_target(cv, ctx, ui);
     ui.island.width.set(target, now);
+    if !ui.island.placed {
+        ui.island.placed = true;
+        ui.island.width.x = target;
+        ui.island.width.v = 0.0;
+    }
     let iw = ui.island.width.step(now);
     let mut anim = !ui.island.width.settled() || ui.island.face.moving(now);
 
@@ -294,7 +299,17 @@ pub fn draw(cv: &mut Canvas, ctx: &Ctx, ui: &mut Ui, hits: &mut Hits) -> Out {
             return Out { anim, input: Some(vec![strip]), done: false, damage: None };
         }
     }
-    Out { anim, input: Some(pills.iter().map(|&(x, y, w, h)| (x, y - 2.0, w, h + 4.0)).collect()), done: false, damage: None }
+    // only the pills change (with their shadow); last frame's pills too, in case one got narrower
+    let pad = 14.0;
+    let mut damage: Vec<(f32, f32, f32, f32)> = pills.iter().map(|&(x, y, w, h)| (x - pad, y - pad, w + 2.0 * pad, h + 2.0 * pad)).collect();
+    damage.extend(ui.island.last_pills.iter().copied());
+    ui.island.last_pills = pills.iter().map(|&(x, y, w, h)| (x - pad, y - pad, w + 2.0 * pad, h + 2.0 * pad)).collect();
+    Out {
+        anim,
+        input: Some(pills.iter().map(|&(x, y, w, h)| (x, y - 2.0, w, h + 4.0)).collect()),
+        done: false,
+        damage: Some(damage),
+    }
 }
 
 fn icon_module(ctx: &Ctx, m: &str) -> (&'static str, Act, Act, Act) {
